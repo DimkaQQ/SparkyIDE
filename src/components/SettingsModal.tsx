@@ -49,7 +49,18 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   } = useStore();
 
   const [tab, setTab] = useState<Tab>('providers');
-  const [expanded, setExpanded] = useState<string | null>(activeProviderId);
+  // Every card toggles on its own: the API key field is always visible,
+  // only the advanced fields sit behind the chevron.
+  const [openCards, setOpenCards] = useState<Set<string>>(
+    () => new Set([providers.find((provider) => !provider.apiKey)?.id ?? activeProviderId]),
+  );
+  const toggleCard = (id: string) =>
+    setOpenCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [detecting, setDetecting] = useState<Set<string>>(new Set());
   const [detectAllBusy, setDetectAllBusy] = useState(false);
@@ -122,7 +133,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     }
     const provider = presetToProvider(preset, id);
     setProviders((prev) => [...prev, provider]);
-    setExpanded(id);
+    setOpenCards((prev) => new Set(prev).add(id));
     setShowAdd(false);
     setNotice(id, { kind: 'ok', text: 'Add your API key, then press Detect models.' });
   };
@@ -211,7 +222,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               </div>
 
               {providers.map((provider) => {
-                const isOpen = expanded === provider.id;
+                const isOpen = openCards.has(provider.id);
                 const isRevealed = revealed.has(provider.id);
                 const isDetecting = detecting.has(provider.id);
                 const notice = notices[provider.id];
@@ -220,7 +231,8 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                     <button
                       type="button"
                       className="provider-head"
-                      onClick={() => setExpanded(isOpen ? null : provider.id)}
+                      aria-expanded={isOpen}
+                      onClick={() => toggleCard(provider.id)}
                     >
                       <span
                         className="provider-icon"
@@ -235,43 +247,84 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                           {provider.models.length > 0 ? ` · ${provider.models.length} models` : ''}
                         </span>
                       </span>
-                      <span className={`key-dot ${provider.apiKey ? 'ok' : ''}`} />
+                      <span className={`key-status ${provider.apiKey ? 'ok' : ''}`}>
+                        {provider.apiKey ? 'key set' : 'add key'}
+                      </span>
                       {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
 
+                    {/* The key field lives outside the collapsible form so it is
+                        visible on every screen, without any click. */}
+                    <div className="provider-key">
+                      <div className="field">
+                        <label htmlFor={`key-${provider.id}`}>API key</label>
+                        <div className="input-with-action">
+                          <input
+                            id={`key-${provider.id}`}
+                            className="input"
+                            type={isRevealed ? 'text' : 'password'}
+                            value={provider.apiKey}
+                            placeholder="sk-… / ghp_… / AIza…"
+                            autoComplete="off"
+                            spellCheck={false}
+                            onChange={(event) =>
+                              update(provider.id, { apiKey: event.target.value.trim() })
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            title={isRevealed ? 'Hide key' : 'Show key'}
+                            onClick={() =>
+                              setRevealed((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(provider.id)) next.delete(provider.id);
+                                else next.add(provider.id);
+                                return next;
+                              })
+                            }
+                          >
+                            {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                        </div>
+                        <p className="field-hint">
+                          Stored in this browser; sent only to {provider.name}.
+                        </p>
+                      </div>
+                      <div className="provider-actions">
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => void detect(provider)}
+                          disabled={isDetecting || !provider.apiKey}
+                          title={
+                            provider.apiKey
+                              ? 'Ask the provider for the models your key can use'
+                              : 'Add an API key first'
+                          }
+                        >
+                          {isDetecting ? (
+                            <Loader2 size={12} className="spin" />
+                          ) : (
+                            <RefreshCw size={12} />
+                          )}
+                          {isDetecting ? 'Detecting…' : 'Detect models'}
+                        </button>
+                      </div>
+                      {notice && (
+                        <div className={`notice ${notice.kind === 'ok' ? 'ok' : 'error'}`}>
+                          {notice.kind === 'ok' ? (
+                            <Check size={13} />
+                          ) : (
+                            <AlertTriangle size={13} />
+                          )}
+                          <span>{notice.text}</span>
+                        </div>
+                      )}
+                    </div>
+
                     {isOpen && (
                       <div className="provider-form">
-                        <div className="field">
-                          <label htmlFor={`key-${provider.id}`}>API key</label>
-                          <div className="input-with-action">
-                            <input
-                              id={`key-${provider.id}`}
-                              className="input"
-                              type={isRevealed ? 'text' : 'password'}
-                              value={provider.apiKey}
-                              placeholder="sk-… / ghp_… / AIza…"
-                              onChange={(event) =>
-                                update(provider.id, { apiKey: event.target.value.trim() })
-                              }
-                            />
-                            <button
-                              type="button"
-                              className="icon-btn"
-                              title={isRevealed ? 'Hide key' : 'Show key'}
-                              onClick={() =>
-                                setRevealed((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(provider.id)) next.delete(provider.id);
-                                  else next.add(provider.id);
-                                  return next;
-                                })
-                              }
-                            >
-                              {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
-                            </button>
-                          </div>
-                        </div>
-
                         <div className="form-row">
                           <div className="field">
                             <label htmlFor={`url-${provider.id}`}>Base URL</label>
@@ -321,19 +374,6 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                         <div className="provider-actions">
                           <button
                             type="button"
-                            className="btn btn-sm"
-                            onClick={() => void detect(provider)}
-                            disabled={isDetecting}
-                          >
-                            {isDetecting ? (
-                              <Loader2 size={12} className="spin" />
-                            ) : (
-                              <RefreshCw size={12} />
-                            )}
-                            Detect models
-                          </button>
-                          <button
-                            type="button"
                             className={`btn btn-sm ${activeProviderId === provider.id ? 'active' : ''}`}
                             onClick={() => setActiveProviderId(provider.id)}
                           >
@@ -355,17 +395,6 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                             <Trash2 size={12} /> Remove
                           </button>
                         </div>
-
-                        {notice && (
-                          <div className={`notice ${notice.kind === 'ok' ? 'ok' : 'error'}`}>
-                            {notice.kind === 'ok' ? (
-                              <Check size={13} />
-                            ) : (
-                              <AlertTriangle size={13} />
-                            )}
-                            <span>{notice.text}</span>
-                          </div>
-                        )}
 
                         {provider.models.length > 0 && (
                           <div className="model-chips">
