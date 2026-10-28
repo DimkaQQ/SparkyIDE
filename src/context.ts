@@ -20,6 +20,16 @@ export interface AppSettings {
 
 export const DEFAULT_PROVIDERS: AIProvider[] = [
   {
+    id: 'meta-muse',
+    name: 'Meta Muse',
+    apiKey: '',
+    baseUrl: 'https://api.meta.ai/v1',
+    model: 'muse-spark-1.3',
+    icon: 'M',
+    color: '#0668E8',
+    format: 'openai',
+  },
+  {
     id: 'anthropic',
     name: 'Claude (Anthropic)',
     apiKey: '',
@@ -49,16 +59,6 @@ export const DEFAULT_PROVIDERS: AIProvider[] = [
     icon: 'G',
     color: '#3b82f6',
     format: 'gemini',
-  },
-  {
-    id: 'meta-together',
-    name: 'Meta Llama (Together)',
-    apiKey: '',
-    baseUrl: 'https://api.together.xyz/v1',
-    model: 'meta-llama/Llama-3.3-70B-Instruct',
-    icon: 'L',
-    color: '#8b5cf6',
-    format: 'openai',
   },
   {
     id: 'openrouter',
@@ -97,7 +97,7 @@ export const AppContext = createContext<{
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
 }>({
-  settings: { providers: DEFAULT_PROVIDERS, activeProviderId: 'anthropic', githubToken: '' },
+  settings: { providers: DEFAULT_PROVIDERS, activeProviderId: 'meta-muse', githubToken: '' },
   setSettings: () => {},
 });
 
