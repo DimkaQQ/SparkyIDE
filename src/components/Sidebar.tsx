@@ -11,35 +11,37 @@ interface SidebarProps {
 
 export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, theme, toggleTheme }: SidebarProps) {
   const items = [
-    { id: 'editor' as const, icon: Code2, label: 'Редактор' },
-    { id: 'chat' as const, icon: MessageSquare, label: 'AI Чат' },
+    { id: 'editor' as const, icon: Code2, label: 'Editor' },
+    { id: 'chat' as const, icon: MessageSquare, label: 'AI Chat' },
     { id: 'github' as const, icon: GitBranch, label: 'GitHub' },
-    { id: 'files' as const, icon: Upload, label: 'Файлы' },
+    { id: 'files' as const, icon: Upload, label: 'Files' },
   ];
 
   return (
-    <div
-      className="w-24 flex flex-col items-center py-8 border-r relative z-20"
+    <aside
+      className="flex flex-col items-center py-2 border-r"
       style={{
-        background: 'var(--bg-glass)',
-        borderColor: 'var(--border-primary)',
-        backdropFilter: 'blur(24px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        width: 'var(--sidebar-w)',
+        background: 'var(--panel)',
+        borderColor: 'var(--border)',
       }}
     >
       {/* Logo */}
-      <div className="mb-12 relative group">
-        <div
-          className="w-16 h-16 rounded-3xl flex items-center justify-center text-white font-black text-2xl gradient-bg shadow-glow-strong transition-all duration-500 group-hover:scale-110 animate-gradient"
-          style={{ backgroundSize: '200% 200%' }}
-        >
-          M
-        </div>
-        <div className="absolute inset-0 rounded-3xl gradient-bg opacity-0 group-hover:opacity-60 blur-2xl transition-opacity duration-500" />
+      <div
+        className="flex items-center justify-center font-bold text-white mb-2"
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 'var(--radius)',
+          background: 'var(--accent)',
+          fontSize: 'var(--text-sm)',
+        }}
+      >
+        M
       </div>
 
       {/* Navigation */}
-      <div className="flex flex-col gap-4 flex-1">
+      <nav className="flex flex-col gap-1 flex-1 w-full px-1.5">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = activePanel === item.id;
@@ -47,65 +49,53 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, t
             <button
               key={item.id}
               onClick={() => setActivePanel(item.id)}
-              className={`flex flex-col items-center gap-2 w-20 py-4 rounded-2xl transition-all duration-500 group relative ${
-                isActive ? 'scale-110' : 'hover:scale-105'
-              }`}
+              className={`btn-icon w-full ${isActive ? 'active' : ''}`}
               style={{
-                background: isActive ? 'var(--accent-gradient)' : 'transparent',
-                boxShadow: isActive ? 'var(--accent-glow-strong)' : 'none',
-                color: isActive ? 'white' : 'var(--text-muted)',
+                width: '100%',
+                height: 40,
+                borderRadius: 'var(--radius)',
+                position: 'relative',
               }}
+              title={item.label}
             >
-              <Icon size={28} strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-xs font-bold uppercase tracking-wider">{item.label}</span>
-              
-              {/* Active indicator */}
+              <Icon size={20} />
               {isActive && (
-                <>
-                  <div
-                    className="absolute -left-[3px] top-1/2 -translate-y-1/2 w-1.5 h-10 rounded-r-full"
-                    style={{ background: 'var(--accent-gradient)' }}
-                  />
-                  <div className="absolute inset-0 rounded-2xl gradient-bg opacity-30 blur-2xl -z-10" />
-                </>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: '25%',
+                    bottom: '25%',
+                    width: 2,
+                    background: 'var(--accent)',
+                    borderRadius: '0 2px 2px 0',
+                  }}
+                />
               )}
             </button>
           );
         })}
-      </div>
+      </nav>
 
-      {/* Bottom Actions */}
-      <div className="flex flex-col gap-4 mt-auto">
-        {/* Theme Toggle */}
+      {/* Bottom actions */}
+      <div className="flex flex-col gap-1 w-full px-1.5 pb-2">
         <button
           onClick={toggleTheme}
-          className="flex flex-col items-center gap-2 w-20 py-4 rounded-2xl transition-all duration-500 hover:scale-105 relative group"
-          style={{
-            background: 'var(--bg-tertiary)',
-            color: 'var(--text-muted)',
-            border: '2px solid var(--border-secondary)',
-          }}
+          className="btn-icon w-full"
+          style={{ width: '100%', height: 40 }}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
         >
-          {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
-          <span className="text-xs font-bold uppercase tracking-wider">Тема</span>
-          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'var(--bg-hover)' }} />
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
-
-        {/* Settings */}
         <button
           onClick={onOpenSettings}
-          className="flex flex-col items-center gap-2 w-20 py-4 rounded-2xl transition-all duration-500 hover:scale-105 relative group"
-          style={{
-            background: 'var(--bg-tertiary)',
-            color: 'var(--text-muted)',
-            border: '2px solid var(--border-secondary)',
-          }}
+          className="btn-icon w-full"
+          style={{ width: '100%', height: 40 }}
+          title="Settings"
         >
-          <Settings size={24} />
-          <span className="text-xs font-bold uppercase tracking-wider">Настройки</span>
-          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'var(--bg-hover)' }} />
+          <Settings size={20} />
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

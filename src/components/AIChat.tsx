@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Loader2, ChevronDown, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, ChevronDown, Paperclip, X } from 'lucide-react';
 import { useAppContext, AIProvider } from '../context';
 import { useTheme } from '../ThemeContext';
 import { marked } from 'marked';
@@ -18,7 +18,7 @@ export default function AIChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: '👋 **Привет!** Я AI-ассистент в MetaCode IDE.\n\nЯ могу помочь тебе с:\n- 📝 Написанием кода\n- 🐛 Дебагом\n- 📖 Объяснением концепций\n- 🖼️ Анализом изображений\n\nВыбери провайдера и начни общение!',
+      content: "Hi! I'm your AI assistant in MetaCode IDE. I can help with code, debugging, explanations, and image analysis. Select a provider above and start chatting!",
     },
   ]);
   const [input, setInput] = useState('');
@@ -54,7 +54,7 @@ export default function AIChat() {
   // === API Call Functions ===
   const callOpenAICompatible = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
     const apiMessages: any[] = [
-      { role: 'system', content: 'You are a helpful coding assistant. Format code with ```language blocks. Be concise but thorough.' },
+      { role: 'system', content: 'You are a helpful coding assistant. Format code with ```language blocks.' },
     ];
     for (const msg of msgs) {
       if (msg.role === 'system') continue;
@@ -109,7 +109,7 @@ export default function AIChat() {
             ...msg.images.map((img) => {
               const base64 = img.split(',')[1];
               const mediaType = img.split(';')[0].split(':')[1];
-              return { type: 'image', source: { type: 'base64', media_type: mediaType,  base64 } };
+              return { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
             }),
           ],
         });
@@ -125,7 +125,7 @@ export default function AIChat() {
           ...imgs.map((img) => {
             const base64 = img.split(',')[1];
             const mediaType = img.split(';')[0].split(':')[1];
-            return { type: 'image', source: { type: 'base64', media_type: mediaType,  base64 } };
+            return { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
           }),
         ],
       });
@@ -164,7 +164,7 @@ export default function AIChat() {
         for (const img of msg.images) {
           const base64 = img.split(',')[1];
           const mimeType = img.split(';')[0].split(':')[1];
-          parts.push({ inline_data: { mime_type: mimeType,  base64 } });
+          parts.push({ inline_data: { mime_type: mimeType, data: base64 } });
         }
       }
       contents.push({ role, parts });
@@ -174,7 +174,7 @@ export default function AIChat() {
       for (const img of imgs) {
         const base64 = img.split(',')[1];
         const mimeType = img.split(';')[0].split(':')[1];
-        parts.push({ inline_data: { mime_type: mimeType,  base64 } });
+        parts.push({ inline_data: { mime_type: mimeType, data: base64 } });
       }
       contents.push({ role: 'user', parts });
     }
@@ -199,13 +199,13 @@ export default function AIChat() {
   const sendMessage = async () => {
     if (!input.trim() && images.length === 0) return;
     if (!activeProvider) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: '⚠️ Выбери AI-провайдер!' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'Please select an AI provider.' }]);
       return;
     }
     if (!activeProvider.apiKey) {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: `⚠️ API ключ для **${activeProvider.name}** не установлен. Открой настройки (⚙️).` },
+        { role: 'assistant', content: `API key for **${activeProvider.name}** is not set. Open settings to add it.` },
       ]);
       return;
     }
@@ -239,7 +239,7 @@ export default function AIChat() {
     } catch (error: any) {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: `❌ **Ошибка** (${activeProvider.name}): ${error.message}` },
+        { role: 'assistant', content: `Error (${activeProvider.name}): ${error.message}` },
       ]);
     } finally {
       setIsLoading(false);
@@ -248,91 +248,79 @@ export default function AIChat() {
 
   const renderMessage = (content: string) => {
     const html = marked.parse(content, { breaks: true }) as string;
-    return <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
+    return <div className="prose" dangerouslySetInnerHTML={{ __html: html }} />;
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden relative">
+    <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="h-16 flex items-center px-6 gap-4 border-b relative z-10"
+        className="toolbar"
         style={{
-          background: 'var(--bg-glass)',
-          borderColor: 'var(--border-primary)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          background: 'var(--panel)',
+          borderBottom: '1px solid var(--border)',
         }}
       >
-        <div
-          className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-glow"
-          style={{ background: `${activeProvider?.color || '#8b5cf6'}20`, border: `1px solid ${activeProvider?.color || '#8b5cf6'}40` }}
-        >
-          <Sparkles size={20} style={{ color: activeProvider?.color || '#8b5cf6' }} />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-base font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} style={{ color: 'var(--accent)' }} />
+          <span className="font-semibold" style={{ color: 'var(--text-strong)', fontSize: 'var(--text-sm)' }}>
             AI Assistant
-          </h2>
-          <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-            {activeProvider?.name || 'Select a provider'}
-          </p>
+          </span>
+          <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>
+            {activeProvider?.name || 'Select provider'}
+          </span>
         </div>
+
+        <div className="flex-1" />
 
         {/* Provider Switcher */}
         <div className="relative">
           <button
             onClick={() => setShowProviderPicker(!showProviderPicker)}
-            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm transition-all duration-300 hover:scale-105"
-            style={{
-              background: 'var(--bg-tertiary)',
-              border: '1px solid var(--border-secondary)',
-              color: 'var(--text-primary)',
-              backdropFilter: 'blur(10px)',
-            }}
+            className="btn"
+            style={{ gap: 'var(--gap)' }}
           >
-            <span className="text-base">{activeProvider?.icon}</span>
-            <span className="text-xs font-semibold">{activeProvider?.name.split(' ')[0]}</span>
-            <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
+            <span style={{ fontSize: 'var(--text-sm)' }}>{activeProvider?.icon}</span>
+            <span style={{ fontSize: 'var(--text-xs)' }}>{activeProvider?.name.split(' ')[0]}</span>
+            <ChevronDown size={14} />
           </button>
 
           {showProviderPicker && (
             <div
-              className="absolute top-full right-0 mt-3 rounded-2xl shadow-glow-strong z-50 w-80 py-3 max-h-96 overflow-y-auto animate-scale-in"
+              className="absolute top-full right-0 mt-1 rounded-lg shadow-lg z-50 py-1 animate-fade-in"
               style={{
-                background: 'var(--bg-glass)',
-                border: '1px solid var(--border-secondary)',
-                backdropFilter: 'blur(30px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+                width: 280,
+                background: 'var(--panel)',
+                border: '1px solid var(--border)',
+                maxHeight: 400,
+                overflowY: 'auto',
               }}
             >
-              <div className="px-4 py-2 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                AI Providers
-              </div>
               {settings.providers.map((provider) => (
                 <button
                   key={provider.id}
                   onClick={() => switchProvider(provider.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors"
                   style={{
-                    background: provider.id === settings.activeProviderId ? 'var(--bg-tertiary)' : 'transparent',
+                    background: provider.id === settings.activeProviderId ? 'var(--surface)' : 'transparent',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.background =
-                      provider.id === settings.activeProviderId ? 'var(--bg-tertiary)' : 'transparent')
+                      provider.id === settings.activeProviderId ? 'var(--surface)' : 'transparent')
                   }
                 >
-                  <span className="text-xl">{provider.icon}</span>
+                  <span style={{ fontSize: 'var(--text-md)' }}>{provider.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                       {provider.name}
                     </p>
-                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                    <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>
                       {provider.model}
                     </p>
                   </div>
                   <div
-                    className="w-2.5 h-2.5 rounded-full"
+                    className="status-dot"
                     style={{ background: provider.apiKey ? 'var(--success)' : 'var(--error)' }}
                   />
                 </button>
@@ -343,58 +331,47 @@ export default function AIChat() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6" style={{ background: 'transparent' }}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ background: 'var(--bg)' }}>
         {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`flex gap-4 animate-fade-in ${msg.role === 'user' ? 'justify-end' : ''}`}
-          >
+          <div key={index} className={`flex gap-3 animate-fade-in ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && (
               <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-glow"
+                className="flex items-center justify-center flex-shrink-0"
                 style={{
-                  background: `${activeProvider?.color || '#8b5cf6'}15`,
-                  border: `1px solid ${activeProvider?.color || '#8b5cf6'}30`,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--radius)',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
                 }}
               >
-                <Bot size={20} style={{ color: activeProvider?.color || '#8b5cf6' }} />
+                <Bot size={18} style={{ color: 'var(--accent)' }} />
               </div>
             )}
             <div
-              className={`max-w-[70%] rounded-2xl px-6 py-4 ${
-                msg.role === 'user' ? '' : ''
-              }`}
-              style={
-                msg.role === 'user'
-                  ? {
-                      background: 'var(--accent-gradient)',
-                      color: 'white',
-                      boxShadow: 'var(--shadow-lg), var(--accent-glow)',
-                    }
-                  : {
-                      background: 'var(--bg-glass)',
-                      border: '1px solid var(--border-secondary)',
-                      color: 'var(--text-primary)',
-                      backdropFilter: 'blur(20px)',
-                      boxShadow: 'var(--shadow-md)',
-                    }
-              }
+              className="max-w-[70%] rounded-lg px-4 py-3"
+              style={{
+                background: msg.role === 'user' ? 'var(--accent)' : 'var(--panel)',
+                color: msg.role === 'user' ? '#ffffff' : 'var(--text)',
+                border: msg.role === 'user' ? 'none' : '1px solid var(--border)',
+              }}
             >
               {msg.role === 'user' ? (
                 <div>
                   {msg.images && msg.images.length > 0 && (
-                    <div className="flex flex-wrap gap-3 mb-4">
+                    <div className="flex flex-wrap gap-2 mb-2">
                       {msg.images.map((img, i) => (
                         <img
                           key={i}
                           src={img}
                           alt="uploaded"
-                          className="max-w-[220px] max-h-[160px] rounded-xl border-2 border-white/20"
+                          className="max-w-[200px] max-h-[150px] rounded"
+                          style={{ border: '1px solid rgba(255,255,255,0.2)' }}
                         />
                       ))}
                     </div>
                   )}
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed font-medium">{msg.content}</p>
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 </div>
               ) : (
                 <div className="text-sm">{renderMessage(msg.content)}</div>
@@ -402,44 +379,51 @@ export default function AIChat() {
             </div>
             {msg.role === 'user' && (
               <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                className="flex items-center justify-center flex-shrink-0"
                 style={{
-                  background: 'var(--bg-tertiary)',
-                  border: '1px solid var(--border-secondary)',
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--radius)',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
                 }}
               >
-                <User size={20} style={{ color: 'var(--text-accent)' }} />
+                <User size={18} style={{ color: 'var(--text)' }} />
               </div>
             )}
           </div>
         ))}
         {isLoading && (
-          <div className="flex gap-4 animate-fade-in">
+          <div className="flex gap-3 animate-fade-in">
             <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-glow"
+              className="flex items-center justify-center"
               style={{
-                background: `${activeProvider?.color || '#8b5cf6'}15`,
-                border: `1px solid ${activeProvider?.color || '#8b5cf6'}30`,
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius)',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
               }}
             >
-              <Loader2 size={20} className="animate-spin" style={{ color: activeProvider?.color || '#8b5cf6' }} />
+              <Loader2 size={18} className="animate-spin" style={{ color: 'var(--accent)' }} />
             </div>
             <div
-              className="rounded-2xl px-6 py-5"
+              className="rounded-lg px-4 py-3"
               style={{
-                background: 'var(--bg-glass)',
-                border: '1px solid var(--border-secondary)',
-                backdropFilter: 'blur(20px)',
-                boxShadow: 'var(--shadow-md)',
+                background: 'var(--panel)',
+                border: '1px solid var(--border)',
               }}
             >
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 {[0, 1, 2].map((i) => (
                   <div
                     key={i}
-                    className="w-2.5 h-2.5 rounded-full animate-bounce"
+                    className="animate-spin"
                     style={{
-                      background: activeProvider?.color || '#8b5cf6',
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
                       animationDelay: `${i * 150}ms`,
                     }}
                   />
@@ -453,47 +437,51 @@ export default function AIChat() {
 
       {/* Input Area */}
       <div
-        className="p-5 border-t relative z-10"
+        className="p-3"
         style={{
-          background: 'var(--bg-glass)',
-          borderColor: 'var(--border-primary)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          background: 'var(--panel)',
+          borderTop: '1px solid var(--border)',
         }}
       >
         {images.length > 0 && (
-          <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex flex-wrap gap-2 mb-2">
             {images.map((img, i) => (
               <div key={i} className="relative group">
                 <img
                   src={img}
                   alt="preview"
-                  className="w-20 h-20 object-cover rounded-xl border-2"
-                  style={{ borderColor: 'var(--border-secondary)' }}
+                  className="rounded"
+                  style={{
+                    width: 64,
+                    height: 64,
+                    objectFit: 'cover',
+                    border: '1px solid var(--border)',
+                  }}
                 />
                 <button
                   onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
-                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
-                  style={{ background: 'var(--error)' }}
+                  className="btn-icon absolute -top-1 -right-1"
+                  style={{
+                    width: 20,
+                    height: 20,
+                    background: 'var(--error)',
+                    color: '#ffffff',
+                    borderRadius: '50%',
+                  }}
                 >
-                  ×
+                  <X size={12} />
                 </button>
               </div>
             ))}
           </div>
         )}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 rounded-xl transition-all duration-300 hover:scale-105"
-            style={{
-              background: 'var(--bg-tertiary)',
-              color: 'var(--text-muted)',
-              border: '1px solid var(--border-secondary)',
-            }}
+            className="btn-icon"
             title="Upload image"
           >
-            <Paperclip size={20} />
+            <Paperclip size={16} />
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
           <input
@@ -501,15 +489,15 @@ export default function AIChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-            placeholder={`Ask ${activeProvider?.name?.split(' ')[0] || 'AI'} anything...`}
-            className="input-field flex-1"
+            placeholder={`Ask ${activeProvider?.name?.split(' ')[0] || 'AI'}...`}
+            className="input flex-1"
           />
           <button
             onClick={sendMessage}
             disabled={isLoading || (!input.trim() && images.length === 0)}
-            className="p-3.5 rounded-xl text-white transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 gradient-bg shadow-glow"
+            className="btn-primary"
           >
-            <Send size={20} />
+            <Send size={16} />
           </button>
         </div>
       </div>

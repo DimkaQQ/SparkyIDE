@@ -8,9 +8,7 @@ export interface AIProvider {
   model: string;
   icon: string;
   color: string;
-  // Format: 'openai' means {messages, model} body, 'anthropic' means {messages, model, system, max_tokens}, 'gemini' means Google format
   format: 'openai' | 'anthropic' | 'gemini' | 'custom';
-  // Custom headers if needed
   headers?: Record<string, string>;
 }
 
@@ -27,7 +25,7 @@ export const DEFAULT_PROVIDERS: AIProvider[] = [
     apiKey: '',
     baseUrl: 'https://api.anthropic.com/v1',
     model: 'claude-sonnet-4-20250514',
-    icon: '🟠',
+    icon: 'A',
     color: '#d97706',
     format: 'anthropic',
     headers: { 'anthropic-version': '2023-06-01' },
@@ -38,7 +36,7 @@ export const DEFAULT_PROVIDERS: AIProvider[] = [
     apiKey: '',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o',
-    icon: '🟢',
+    icon: 'O',
     color: '#10b981',
     format: 'openai',
   },
@@ -48,7 +46,7 @@ export const DEFAULT_PROVIDERS: AIProvider[] = [
     apiKey: '',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     model: 'gemini-2.0-flash',
-    icon: '🔵',
+    icon: 'G',
     color: '#3b82f6',
     format: 'gemini',
   },
@@ -58,7 +56,7 @@ export const DEFAULT_PROVIDERS: AIProvider[] = [
     apiKey: '',
     baseUrl: 'https://api.together.xyz/v1',
     model: 'meta-llama/Llama-3.3-70B-Instruct',
-    icon: '🟣',
+    icon: 'L',
     color: '#8b5cf6',
     format: 'openai',
   },
@@ -68,7 +66,7 @@ export const DEFAULT_PROVIDERS: AIProvider[] = [
     apiKey: '',
     baseUrl: 'https://openrouter.ai/api/v1',
     model: 'anthropic/claude-sonnet-4-20250514',
-    icon: '🌐',
+    icon: 'R',
     color: '#06b6d4',
     format: 'openai',
     headers: { 'HTTP-Referer': window.location.origin, 'X-Title': 'MetaCode IDE' },
@@ -79,7 +77,7 @@ export const DEFAULT_PROVIDERS: AIProvider[] = [
     apiKey: '',
     baseUrl: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
-    icon: '🐋',
+    icon: 'D',
     color: '#0ea5e9',
     format: 'openai',
   },
@@ -89,7 +87,7 @@ export const DEFAULT_PROVIDERS: AIProvider[] = [
     apiKey: '',
     baseUrl: 'https://api.mistral.ai/v1',
     model: 'mistral-large-latest',
-    icon: '🌊',
+    icon: 'M',
     color: '#f97316',
     format: 'openai',
   },

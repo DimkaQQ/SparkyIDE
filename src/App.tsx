@@ -7,6 +7,7 @@ import FileUpload from './components/FileUpload';
 import SettingsModal from './components/SettingsModal';
 import { AppContext, AppSettings, DEFAULT_PROVIDERS } from './context';
 import { ThemeProvider, useTheme } from './ThemeContext';
+import { Wifi, WifiOff, GitBranch } from 'lucide-react';
 
 function AppContent() {
   const { theme, toggleTheme } = useTheme();
@@ -18,7 +19,7 @@ function AppContent() {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [files, setFiles] = useState<{ name: string; content: string; language: string }[]>([
-    { name: 'main.js', content: '// ✨ Добро пожаловать в MetaCode IDE!\n// Твоя AI-среда для разработки\n\nfunction greet(name) {\n  return `Привет, ${name}! 👋`;\n}\n\nconsole.log(greet("Разработчик"));', language: 'javascript' },
+    { name: 'main.js', content: '// Welcome to MetaCode IDE\n// Start coding or ask AI for help.\n\nconsole.log("Hello, World!");', language: 'javascript' },
   ]);
   const [activeFile, setActiveFile] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; url: string; content?: string }[]>([]);
@@ -29,12 +30,7 @@ function AppContent() {
 
   return (
     <AppContext.Provider value={{ settings, setSettings }}>
-      <div className="h-screen w-screen flex overflow-hidden relative" style={{ background: 'var(--bg-primary)' }}>
-        {/* Decorative Background */}
-        <div className="absolute inset-0 pointer-events-none mesh-gradient opacity-60" />
-        <div className="glow-orb glow-orb-1" />
-        <div className="glow-orb glow-orb-2" />
-
+      <div className="h-screen w-screen flex overflow-hidden" style={{ background: 'var(--bg)' }}>
         {/* Sidebar */}
         <Sidebar
           activePanel={activePanel}
@@ -45,66 +41,55 @@ function AppContent() {
         />
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Top Bar */}
           <div
-            className="h-16 flex items-center px-8 justify-between border-b relative z-10"
+            className="toolbar"
             style={{
-              background: 'var(--bg-glass)',
-              borderColor: 'var(--border-primary)',
-              backdropFilter: 'blur(24px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+              background: 'var(--panel)',
+              borderBottom: '1px solid var(--border)',
             }}
           >
-            <div className="flex items-center gap-5">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black text-lg gradient-bg shadow-glow"
-                >
-                  M
-                </div>
-                <div>
-                  <span className="font-black text-base tracking-tight block" style={{ color: 'var(--text-primary)' }}>
-                    MetaCode IDE
-                  </span>
-                  <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                    AI-Powered Development
-                  </span>
-                </div>
-              </div>
-              <div className="h-8 w-px mx-3" style={{ background: 'var(--border-secondary)' }} />
-              <div className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '2px solid var(--border-primary)' }}>
-                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--accent-primary)' }} />
-                <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {files[activeFile]?.name || 'Нет файла'}
-                </span>
-              </div>
+            <div className="flex items-center gap-2">
+              <span
+                className="font-semibold"
+                style={{ color: 'var(--text-strong)', fontSize: 'var(--text-sm)' }}
+              >
+                MetaCode IDE
+              </span>
+              <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>|</span>
+              <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>
+                {files[activeFile]?.name || 'No file'}
+              </span>
             </div>
-            <div className="flex items-center gap-4">
+
+            <div className="flex-1" />
+
+            {/* Status indicators */}
+            <div className="flex items-center gap-3">
               {activeProvider && (
-                <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '2px solid var(--border-primary)' }}>
-                  <span className="text-lg">{activeProvider.icon}</span>
-                  <div>
-                    <span className="text-sm font-bold block" style={{ color: 'var(--text-primary)' }}>
-                      {activeProvider.name.split(' ')[0]}
-                    </span>
-                    <span className="text-xs font-semibold" style={{ color: isConnected ? 'var(--success)' : 'var(--error)' }}>
-                      {isConnected ? 'Подключено' : 'Нет ключа'}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  {isConnected ? (
+                    <Wifi size={14} style={{ color: 'var(--success)' }} />
+                  ) : (
+                    <WifiOff size={14} style={{ color: 'var(--error)' }} />
+                  )}
+                  <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>
+                    {activeProvider.name.split(' ')[0]}
+                  </span>
                 </div>
               )}
-              <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '2px solid var(--border-primary)' }}>
-                <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>GitHub</span>
-                <span className="text-xs font-bold" style={{ color: ghConnected ? 'var(--success)' : 'var(--error)' }}>
-                  {ghConnected ? '✓ Подключено' : '✗ Не подключено'}
+              <div className="flex items-center gap-2">
+                <GitBranch size={14} style={{ color: ghConnected ? 'var(--success)' : 'var(--muted)' }} />
+                <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>
+                  {ghConnected ? 'GitHub' : 'No GitHub'}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 flex overflow-hidden relative z-10">
+          <div className="flex-1 flex overflow-hidden">
             {activePanel === 'editor' && (
               <Editor files={files} setFiles={setFiles} activeFile={activeFile} setActiveFile={setActiveFile} />
             )}

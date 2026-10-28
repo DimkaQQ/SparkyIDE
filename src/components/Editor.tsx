@@ -20,9 +20,9 @@ const LANGUAGES = ['javascript', 'typescript', 'python', 'html', 'css', 'json', 
 
 const getFileIcon = (name: string) => {
   const ext = name.split('.').pop()?.toLowerCase();
-  if (['js', 'jsx', 'ts', 'tsx'].includes(ext || '')) return <FileCode size={16} className="text-yellow-400" />;
-  if (ext === 'json') return <FileJson size={16} className="text-green-400" />;
-  return <FileText size={16} className="text-blue-400" />;
+  if (['js', 'jsx', 'ts', 'tsx'].includes(ext || '')) return <FileCode size={14} />;
+  if (ext === 'json') return <FileJson size={14} />;
+  return <FileText size={14} />;
 };
 
 export default function EditorPanel({ files, setFiles, activeFile, setActiveFile }: EditorProps) {
@@ -58,98 +58,72 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden relative">
+    <div className="flex-1 flex flex-col overflow-hidden">
       {/* File Tabs */}
       <div
-        className="h-14 flex items-center overflow-x-auto border-b relative z-10"
+        className="flex items-center overflow-x-auto"
         style={{
-          background: 'var(--bg-glass)',
-          borderColor: 'var(--border-primary)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          height: 'var(--tab-h)',
+          background: 'var(--panel)',
+          borderBottom: '1px solid var(--border)',
         }}
       >
-        <div className="flex items-center gap-2 px-6">
-          <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-            Файлы:
-          </span>
-        </div>
         {files.map((file, index) => (
           <div
             key={index}
             onClick={() => setActiveFile(index)}
-            className="flex items-center gap-3 px-6 h-full cursor-pointer border-r min-w-fit group transition-all duration-300 relative"
-            style={{
-              borderColor: 'var(--border-primary)',
-              background: activeFile === index ? 'var(--bg-tertiary)' : 'transparent',
-            }}
+            className={`tab ${activeFile === index ? 'active' : ''}`}
           >
             {getFileIcon(file.name)}
-            <span
-              className="text-sm font-bold"
-              style={{
-                color: activeFile === index ? 'var(--text-primary)' : 'var(--text-muted)',
-              }}
-            >
-              {file.name}
-            </span>
+            <span>{file.name}</span>
             {files.length > 1 && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleCloseFile(index);
                 }}
-                className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all duration-300 rounded-lg p-1.5 hover:bg-red-500/10"
-                style={{ color: 'var(--text-muted)' }}
+                className="btn-icon"
+                style={{ width: 20, height: 20, padding: 0, marginLeft: 'auto' }}
               >
-                <X size={14} />
+                <X size={12} />
               </button>
-            )}
-            {/* Active indicator */}
-            {activeFile === index && (
-              <div
-                className="absolute bottom-0 left-0 right-0 h-1"
-                style={{ background: 'var(--accent-gradient)' }}
-              />
             )}
           </div>
         ))}
         <button
           onClick={() => setShowNewFile(!showNewFile)}
-          className="px-5 h-full transition-all duration-300 hover:scale-110 flex items-center gap-2"
-          style={{ color: 'var(--text-muted)' }}
+          className="btn-icon"
+          style={{ marginLeft: 'var(--gap)' }}
+          title="New file"
         >
-          <Plus size={20} />
-          <span className="text-sm font-bold uppercase tracking-wider">Новый</span>
+          <Plus size={16} />
         </button>
       </div>
 
       {/* New File Dialog */}
       {showNewFile && (
         <div
-          className="flex items-center gap-5 p-6 border-b animate-fade-in relative z-10"
+          className="flex items-center gap-2 p-3 animate-fade-in"
           style={{
-            background: 'var(--bg-glass)',
-            borderColor: 'var(--border-primary)',
-            backdropFilter: 'blur(24px)',
+            background: 'var(--panel)',
+            borderBottom: '1px solid var(--border)',
           }}
         >
-          <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-            Создать файл:
-          </span>
           <input
             type="text"
             value={newFileName}
             onChange={(e) => setNewFileName(e.target.value)}
-            placeholder="имя_файла.js"
-            className="input-field max-w-[250px]"
+            placeholder="filename.js"
+            className="input"
+            style={{ width: 200 }}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateFile()}
             autoFocus
           />
           <select
             value={newFileLang}
             onChange={(e) => setNewFileLang(e.target.value)}
-            className="input-field max-w-[180px]"
+            className="input"
+            style={{ width: 140 }}
           >
             {LANGUAGES.map((lang) => (
               <option key={lang} value={lang}>
@@ -157,20 +131,17 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
               </option>
             ))}
           </select>
-          <button onClick={handleCreateFile} className="btn-primary text-sm py-3 px-6">
-            Создать
+          <button onClick={handleCreateFile} className="btn-primary">
+            Create
           </button>
-          <button
-            onClick={() => setShowNewFile(false)}
-            className="btn-secondary text-sm py-3 px-6"
-          >
-            Отмена
+          <button onClick={() => setShowNewFile(false)} className="btn">
+            Cancel
           </button>
         </div>
       )}
 
       {/* Monaco Editor */}
-      <div className="flex-1 relative">
+      <div className="flex-1">
         <Editor
           height="100%"
           language={files[activeFile]?.language || 'javascript'}
@@ -178,23 +149,19 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
           onChange={handleChange}
           theme={theme === 'dark' ? 'vs-dark' : 'vs'}
           options={{
-            fontSize: 15,
-            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-            minimap: { enabled: true, scale: 0.01 },
-            padding: { top: 24 },
+            fontSize: 14,
+            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+            minimap: { enabled: true },
+            padding: { top: 16 },
             scrollBeyondLastLine: false,
             wordWrap: 'on',
             automaticLayout: true,
-            lineHeight: 26,
+            lineHeight: 22,
             letterSpacing: 0.3,
             renderLineHighlight: 'all',
             cursorBlinking: 'smooth',
             smoothScrolling: true,
             bracketPairColorization: { enabled: true },
-            guides: {
-              bracketPairs: true,
-              indentation: true,
-            },
           }}
         />
       </div>
