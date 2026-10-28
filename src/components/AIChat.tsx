@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Loader2, Image, ChevronDown } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, Image as ImageIcon, ChevronDown, Paperclip } from 'lucide-react';
 import { useAppContext, AIProvider } from '../context';
+import { useTheme } from '../ThemeContext';
 import { marked } from 'marked';
 
 interface Message {
@@ -11,12 +12,13 @@ interface Message {
 
 export default function AIChat() {
   const { settings, setSettings } = useAppContext();
+  const { theme } = useTheme();
   const activeProvider = settings.providers.find((p) => p.id === settings.activeProviderId);
 
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: '👋 Привет! Я AI-ассистент. Я могу работать с любым провайдером — Claude, GPT, Gemini, Llama и другими. Выбери провайдера сверху и задавай вопросы! Можно загружать фото для анализа.',
+      content: '👋 **Привет!** Я AI-ассистент в MetaCode IDE.\n\nЯ могу помочь тебе с:\n- 📝 Написанием кода\n- 🐛 Дебагом\n- 📖 Объяснением концепций\n- 🖼️ Анализом изображений\n\nВыбери провайдера сверху и начни общение!',
     },
   ]);
   const [input, setInput] = useState('');
@@ -49,13 +51,11 @@ export default function AIChat() {
     setShowProviderPicker(false);
   };
 
-  // === API Call Functions for different providers ===
-
+  // === API Call Functions ===
   const callOpenAICompatible = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
     const apiMessages: any[] = [
       { role: 'system', content: 'You are a helpful coding assistant. Format code with ```language blocks. Be concise but thorough.' },
     ];
-
     for (const msg of msgs) {
       if (msg.role === 'system') continue;
       if (msg.role === 'user' && msg.images && msg.images.length > 0) {
@@ -70,8 +70,6 @@ export default function AIChat() {
         apiMessages.push({ role: msg.role, content: msg.content });
       }
     }
-
-    // Add current message with images if any
     if (imgs.length > 0) {
       apiMessages.push({
         role: 'user',
@@ -81,36 +79,26 @@ export default function AIChat() {
         ],
       });
     }
-
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${provider.apiKey}`,
       ...provider.headers,
     };
-
     const response = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        model: provider.model,
-        messages: apiMessages,
-        max_tokens: 4096,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify({ model: provider.model, messages: apiMessages, max_tokens: 4096, temperature: 0.7 }),
     });
-
     if (!response.ok) {
       const err = await response.text();
       throw new Error(`${response.status}: ${err}`);
     }
-
     const data = await response.json();
     return data.choices?.[0]?.message?.content || 'No response.';
   };
 
   const callAnthropic = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
     const apiMessages: any[] = [];
-
     for (const msg of msgs) {
       if (msg.role === 'system') continue;
       if (msg.role === 'user' && msg.images && msg.images.length > 0) {
@@ -129,7 +117,6 @@ export default function AIChat() {
         apiMessages.push({ role: msg.role, content: msg.content });
       }
     }
-
     if (imgs.length > 0) {
       apiMessages.push({
         role: 'user',
@@ -143,7 +130,6 @@ export default function AIChat() {
         ],
       });
     }
-
     const response = await fetch(`${provider.baseUrl}/messages`, {
       method: 'POST',
       headers: {
@@ -156,28 +142,24 @@ export default function AIChat() {
       body: JSON.stringify({
         model: provider.model,
         max_tokens: 4096,
-        system: 'You are a helpful coding assistant. Format code with ```language blocks. Be concise but thorough.',
+        system: 'You are a helpful coding assistant. Format code with ```language blocks.',
         messages: apiMessages,
       }),
     });
-
     if (!response.ok) {
       const err = await response.text();
       throw new Error(`${response.status}: ${err}`);
     }
-
     const data = await response.json();
     return data.content?.[0]?.text || 'No response.';
   };
 
   const callGemini = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
     const contents: any[] = [];
-
     for (const msg of msgs) {
       if (msg.role === 'system') continue;
       const role = msg.role === 'assistant' ? 'model' : 'user';
       const parts: any[] = [{ text: msg.content }];
-
       if (msg.images && msg.images.length > 0) {
         for (const img of msg.images) {
           const base64 = img.split(',')[1];
@@ -187,7 +169,6 @@ export default function AIChat() {
       }
       contents.push({ role, parts });
     }
-
     if (imgs.length > 0) {
       const parts: any[] = [{ text: userInput || 'Describe this image' }];
       for (const img of imgs) {
@@ -197,24 +178,20 @@ export default function AIChat() {
       }
       contents.push({ role: 'user', parts });
     }
-
     const url = `${provider.baseUrl}/models/${provider.model}:generateContent?key=${provider.apiKey}`;
-
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents,
-        systemInstruction: { parts: [{ text: 'You are a helpful coding assistant. Format code with ```language blocks. Be concise but thorough.' }] },
+        systemInstruction: { parts: [{ text: 'You are a helpful coding assistant.' }] },
         generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
       }),
     });
-
     if (!response.ok) {
       const err = await response.text();
       throw new Error(`${response.status}: ${err}`);
     }
-
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
   };
@@ -228,7 +205,7 @@ export default function AIChat() {
     if (!activeProvider.apiKey) {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: `⚠️ API ключ для ${activeProvider.name} не установлен. Открой настройки (⚙️) и добавь ключ.` },
+        { role: 'assistant', content: `⚠️ API ключ для **${activeProvider.name}** не установлен. Открой настройки (⚙️) и добавь ключ.` },
       ]);
       return;
     }
@@ -262,10 +239,7 @@ export default function AIChat() {
     } catch (error: any) {
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          content: `❌ Ошибка (${activeProvider.name}): ${error.message}\n\nПроверь API ключ и настройки провайдера.`,
-        },
+        { role: 'assistant', content: `❌ **Ошибка** (${activeProvider.name}): ${error.message}` },
       ]);
     } finally {
       setIsLoading(false);
@@ -274,126 +248,191 @@ export default function AIChat() {
 
   const renderMessage = (content: string) => {
     const html = marked.parse(content, { breaks: true }) as string;
-    return <div className="prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
+    return <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
   };
-
-  const configuredProviders = settings.providers.filter((p) => p.apiKey);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header with Provider Picker */}
-      <div className="h-12 bg-[#181825] border-b border-[#313244] flex items-center px-4 gap-2">
-        <Sparkles size={18} className="text-purple-400" />
-        <span className="font-medium text-sm">AI Assistant</span>
+      {/* Header */}
+      <div
+        className="h-14 flex items-center px-5 gap-3 border-b"
+        style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+      >
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ background: `${activeProvider?.color || '#7c3aed'}20` }}
+        >
+          <Sparkles size={16} style={{ color: activeProvider?.color || '#7c3aed' }} />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            AI Assistant
+          </h2>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {activeProvider?.name || 'Select a provider'}
+          </p>
+        </div>
 
         {/* Provider Switcher */}
-        <div className="relative ml-3">
+        <div className="relative">
           <button
             onClick={() => setShowProviderPicker(!showProviderPicker)}
-            className="flex items-center gap-1.5 bg-[#313244] px-3 py-1.5 rounded-lg text-sm hover:bg-[#45475a] transition-colors"
-            style={{ borderLeft: `3px solid ${activeProvider?.color || '#8b5cf6'}` }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200 hover:scale-[1.02]"
+            style={{
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-primary)',
+              color: 'var(--text-primary)',
+            }}
           >
             <span>{activeProvider?.icon}</span>
-            <span className="text-gray-300">{activeProvider?.name || 'Select Provider'}</span>
-            <ChevronDown size={14} className="text-gray-400" />
+            <span className="text-xs font-medium">{activeProvider?.name.split(' ')[0]}</span>
+            <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
           </button>
 
           {showProviderPicker && (
-            <div className="absolute top-full left-0 mt-1 bg-[#1e1e2e] border border-[#313244] rounded-xl shadow-2xl z-50 w-72 py-2 max-h-80 overflow-y-auto">
-              <div className="px-3 py-1.5 text-xs text-gray-500 font-medium">CONFIGURED</div>
+            <div
+              className="absolute top-full right-0 mt-2 rounded-xl shadow-2xl z-50 w-72 py-2 max-h-80 overflow-y-auto animate-fade-in"
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-primary)',
+              }}
+            >
+              <div className="px-3 py-1.5 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                AI PROVIDERS
+              </div>
               {settings.providers.map((provider) => (
                 <button
                   key={provider.id}
                   onClick={() => switchProvider(provider.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-[#313244] transition-colors text-left ${
-                    provider.id === settings.activeProviderId ? 'bg-[#313244]' : ''
-                  }`}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-150 text-left"
+                  style={{
+                    background: provider.id === settings.activeProviderId ? 'var(--bg-tertiary)' : 'transparent',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background =
+                      provider.id === settings.activeProviderId ? 'var(--bg-tertiary)' : 'transparent')
+                  }
                 >
                   <span className="text-lg">{provider.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-200 truncate">{provider.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{provider.model}</p>
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      {provider.name}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                      {provider.model}
+                    </p>
                   </div>
                   {provider.apiKey ? (
-                    <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
+                    <div className="w-2 h-2 rounded-full" style={{ background: 'var(--success)' }} />
                   ) : (
-                    <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>
+                    <div className="w-2 h-2 rounded-full" style={{ background: 'var(--error)' }} />
                   )}
                 </button>
               ))}
-              <div className="border-t border-[#313244] mt-1 pt-1">
-                <button
-                  onClick={() => {
-                    setShowProviderPicker(false);
-                    // Trigger settings open
-                    document.querySelector<HTMLButtonElement>('[title="Settings"]')?.click();
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-purple-400 hover:bg-[#313244] transition-colors"
-                >
-                  + Add Custom Provider
-                </button>
-              </div>
             </div>
           )}
         </div>
-
-        <span className="text-xs text-gray-500 ml-auto">
-          {configuredProviders.length} provider{configuredProviders.length !== 1 ? 's' : ''} ready
-        </span>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-5 space-y-5" style={{ background: 'var(--bg-primary)' }}>
         {messages.map((msg, index) => (
-          <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+          <div
+            key={index}
+            className={`flex gap-3 animate-fade-in ${msg.role === 'user' ? 'justify-end' : ''}`}
+          >
             {msg.role === 'assistant' && (
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: `${activeProvider?.color || '#8b5cf6'}20` }}
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: `${activeProvider?.color || '#7c3aed'}15`,
+                  border: `1px solid ${activeProvider?.color || '#7c3aed'}30`,
+                }}
               >
-                <Bot size={16} style={{ color: activeProvider?.color || '#8b5cf6' }} />
+                <Bot size={18} style={{ color: activeProvider?.color || '#7c3aed' }} />
               </div>
             )}
             <div
-              className={`max-w-[80%] rounded-xl px-4 py-3 ${
-                msg.role === 'user' ? 'bg-purple-600 text-white' : 'bg-[#313244] text-gray-200'
+              className={`max-w-[75%] rounded-2xl px-5 py-3.5 ${
+                msg.role === 'user' ? '' : ''
               }`}
+              style={
+                msg.role === 'user'
+                  ? {
+                      background: 'var(--accent-gradient)',
+                      color: 'white',
+                      boxShadow: 'var(--accent-glow)',
+                    }
+                  : {
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-primary)',
+                      color: 'var(--text-primary)',
+                    }
+              }
             >
               {msg.role === 'user' ? (
                 <div>
                   {msg.images && msg.images.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
+                    <div className="flex flex-wrap gap-2 mb-3">
                       {msg.images.map((img, i) => (
-                        <img key={i} src={img} alt="uploaded" className="max-w-[200px] max-h-[150px] rounded-lg" />
+                        <img
+                          key={i}
+                          src={img}
+                          alt="uploaded"
+                          className="max-w-[200px] max-h-[150px] rounded-xl border border-white/20"
+                        />
                       ))}
                     </div>
                   )}
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                 </div>
               ) : (
                 <div className="text-sm">{renderMessage(msg.content)}</div>
               )}
             </div>
             {msg.role === 'user' && (
-              <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center flex-shrink-0">
-                <User size={16} className="text-blue-400" />
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-primary)',
+                }}
+              >
+                <User size={18} style={{ color: 'var(--text-accent)' }} />
               </div>
             )}
           </div>
         ))}
         {isLoading && (
-          <div className="flex gap-3">
+          <div className="flex gap-3 animate-fade-in">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: `${activeProvider?.color || '#8b5cf6'}20` }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{
+                background: `${activeProvider?.color || '#7c3aed'}15`,
+                border: `1px solid ${activeProvider?.color || '#7c3aed'}30`,
+              }}
             >
-              <Loader2 size={16} className="animate-spin" style={{ color: activeProvider?.color || '#8b5cf6' }} />
+              <Loader2 size={18} className="animate-spin" style={{ color: activeProvider?.color || '#7c3aed' }} />
             </div>
-            <div className="bg-[#313244] rounded-xl px-4 py-3">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div
+              className="rounded-2xl px-5 py-4"
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-primary)',
+              }}
+            >
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="w-2 h-2 rounded-full animate-bounce"
+                    style={{
+                      background: activeProvider?.color || '#7c3aed',
+                      animationDelay: `${i * 150}ms`,
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -402,15 +441,24 @@ export default function AIChat() {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-[#313244] bg-[#181825]">
+      <div
+        className="p-4 border-t"
+        style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+      >
         {images.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-2">
+          <div className="flex flex-wrap gap-2 mb-3">
             {images.map((img, i) => (
               <div key={i} className="relative group">
-                <img src={img} alt="preview" className="w-16 h-16 object-cover rounded-lg border border-[#45475a]" />
+                <img
+                  src={img}
+                  alt="preview"
+                  className="w-16 h-16 object-cover rounded-xl border"
+                  style={{ borderColor: 'var(--border-primary)' }}
+                />
                 <button
                   onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
-                  className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ background: 'var(--error)' }}
                 >
                   ×
                 </button>
@@ -421,32 +469,33 @@ export default function AIChat() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-[#313244] transition-colors"
+            className="p-2.5 rounded-xl transition-all duration-200 hover:scale-105"
+            style={{
+              background: 'var(--bg-tertiary)',
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border-primary)',
+            }}
             title="Upload image"
           >
-            <Image size={20} />
+            <Paperclip size={18} />
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleImageUpload}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-            placeholder={`Ask ${activeProvider?.name || 'AI'} anything...`}
-            className="flex-1 bg-[#313244] text-white text-sm px-4 py-2.5 rounded-xl border border-[#45475a] focus:border-purple-500 focus:outline-none placeholder-gray-500"
+            placeholder={`Ask ${activeProvider?.name?.split(' ')[0] || 'AI'} anything...`}
+            className="input-field flex-1"
           />
           <button
             onClick={sendMessage}
             disabled={isLoading || (!input.trim() && images.length === 0)}
-            className="p-2.5 rounded-xl text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            style={{ backgroundColor: activeProvider?.color || '#8b5cf6' }}
+            className="p-3 rounded-xl text-white transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            style={{
+              background: 'var(--accent-gradient)',
+              boxShadow: 'var(--accent-glow)',
+            }}
           >
             <Send size={18} />
           </button>

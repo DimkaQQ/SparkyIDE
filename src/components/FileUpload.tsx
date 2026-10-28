@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileImage, FileText, X, File } from 'lucide-react';
+import { Upload, FileImage, FileText, X, File, Sparkles } from 'lucide-react';
 
 interface UploadedFile {
   name: string;
@@ -72,33 +72,58 @@ export default function FileUpload({ uploadedFiles, setUploadedFiles, setFiles }
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="h-12 bg-[#181825] border-b border-[#313244] flex items-center px-4 gap-2">
-        <Upload size={18} className="text-blue-400" />
-        <span className="font-medium text-sm">File Upload</span>
+      <div
+        className="h-14 flex items-center px-5 gap-3 border-b"
+        style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+      >
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(249, 115, 22, 0.15)' }}>
+          <Upload size={16} style={{ color: '#f97316' }} />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>File Upload</h2>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Drag & drop or browse files</p>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-5" style={{ background: 'var(--bg-primary)' }}>
         {/* Dropzone */}
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all ${
-            isDragActive || dragActive
-              ? 'border-purple-500 bg-purple-500/10'
-              : 'border-[#45475a] hover:border-purple-500/50 hover:bg-[#313244]/50'
-          }`}
+          className="rounded-2xl p-10 text-center cursor-pointer transition-all duration-300"
+          style={{
+            border: `2px dashed ${isDragActive || dragActive ? 'var(--accent-primary)' : 'var(--border-secondary)'}`,
+            background: isDragActive || dragActive ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+            boxShadow: isDragActive || dragActive ? 'var(--accent-glow)' : 'none',
+          }}
         >
           <input {...getInputProps()} />
-          <Upload size={48} className={`mx-auto mb-4 ${isDragActive ? 'text-purple-400' : 'text-gray-500'}`} />
-          <p className="text-gray-300 font-medium mb-1">
-            {isDragActive ? 'Drop files here...' : 'Drag & drop files here'}
+          <div
+            className="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center transition-all duration-300"
+            style={{
+              background: isDragActive || dragActive ? 'var(--accent-gradient)' : 'var(--bg-tertiary)',
+              boxShadow: isDragActive || dragActive ? 'var(--accent-glow)' : 'none',
+            }}
+          >
+            {isDragActive || dragActive ? (
+              <Sparkles size={28} className="text-white" />
+            ) : (
+              <Upload size={28} style={{ color: 'var(--text-muted)' }} />
+            )}
+          </div>
+          <p className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+            {isDragActive || dragActive ? 'Drop files here...' : 'Drag & drop files here'}
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             or click to browse. Supports code files, images, and documents.
           </p>
-          <div className="flex flex-wrap justify-center gap-2 mt-4">
+          <div className="flex flex-wrap justify-center gap-2 mt-5">
             {['JS', 'TS', 'Python', 'HTML', 'CSS', 'JSON', 'Images', 'Markdown'].map((type) => (
-              <span key={type} className="text-xs bg-[#313244] text-gray-400 px-2 py-1 rounded">
+              <span
+                key={type}
+                className="badge"
+                style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
+              >
                 {type}
               </span>
             ))}
@@ -108,47 +133,52 @@ export default function FileUpload({ uploadedFiles, setUploadedFiles, setFiles }
         {/* Uploaded Files */}
         {uploadedFiles.length > 0 && (
           <div className="mt-6">
-            <h3 className="text-sm font-medium text-gray-300 mb-3">Uploaded Files ({uploadedFiles.length})</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>
+              Uploaded Files ({uploadedFiles.length})
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {uploadedFiles.map((file, index) => (
                 <div
                   key={index}
-                  className="bg-[#313244] rounded-lg p-3 group relative"
+                  className="card group relative transition-all duration-200 hover:scale-[1.02]"
                 >
                   <button
                     onClick={() => removeFile(index)}
-                    className="absolute top-2 right-2 w-5 h-5 bg-red-500/80 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+                    style={{ background: 'var(--error)', color: 'white' }}
                   >
-                    <X size={12} className="text-white" />
+                    <X size={12} />
                   </button>
 
                   {file.type.startsWith('image/') ? (
-                    <div className="mb-2">
+                    <div className="mb-3">
                       <img
                         src={file.url}
                         alt={file.name}
-                        className="w-full h-24 object-cover rounded-lg"
+                        className="w-full h-28 object-cover rounded-xl"
                       />
                     </div>
                   ) : (
-                    <div className="mb-2 h-24 bg-[#1e1e2e] rounded-lg flex items-center justify-center">
+                    <div className="mb-3 h-28 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
                       {file.content ? (
-                        <pre className="text-[10px] text-gray-400 p-2 overflow-hidden max-h-full w-full">
+                        <pre className="text-[10px] p-3 overflow-hidden max-h-full w-full" style={{ color: 'var(--text-muted)' }}>
                           {file.content.slice(0, 200)}...
                         </pre>
                       ) : (
-                        <File size={24} className="text-gray-500" />
+                        <File size={28} style={{ color: 'var(--text-muted)' }} />
                       )}
                     </div>
                   )}
 
                   <div className="flex items-center gap-2">
                     {file.type.startsWith('image/') ? (
-                      <FileImage size={14} className="text-pink-400" />
+                      <FileImage size={14} style={{ color: '#ec4899' }} />
                     ) : (
-                      <FileText size={14} className="text-blue-400" />
+                      <FileText size={14} style={{ color: 'var(--info)' }} />
                     )}
-                    <span className="text-xs text-gray-300 truncate">{file.name}</span>
+                    <span className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      {file.name}
+                    </span>
                   </div>
                 </div>
               ))}
