@@ -100,6 +100,16 @@ export const githubTools: Tool[] = [
   },
 ];
 
+// Wrap tool definitions in the OpenAI function-calling schema.
+// The API expects each entry to look like:
+//   { type: 'function', function: { name, description, parameters } }
+// Sending bare { name, description, parameters } objects causes a 400:
+//   "tools[0] did not match any supported type"
+export const openaiTools = githubTools.map((tool) => ({
+  type: 'function' as const,
+  function: tool,
+}));
+
 export async function executeTool(
   toolCall: ToolCall,
   githubToken: string
