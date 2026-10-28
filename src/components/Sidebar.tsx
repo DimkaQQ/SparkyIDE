@@ -18,17 +18,10 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, t
   ];
 
   return (
-    <aside
-      className="flex flex-col items-center py-2 border-r"
-      style={{
-        width: 'var(--sidebar-w)',
-        background: 'var(--panel)',
-        borderColor: 'var(--border)',
-      }}
-    >
+    <aside className="sidebar">
       {/* Logo */}
       <div
-        className="flex items-center justify-center font-bold text-white mb-2"
+        className="flex items-center justify-center font-bold text-white"
         style={{
           width: 32,
           height: 32,

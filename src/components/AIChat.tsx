@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Loader2, ChevronDown, Paperclip, X, Wrench } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, ChevronDown, Paperclip, X } from 'lucide-react';
 import { useAppContext, AIProvider } from '../context';
 import { useTheme } from '../ThemeContext';
 import { marked } from 'marked';
-import { githubTools, executeTool, ToolCall, ToolResult } from '../tools';
+import { githubTools, executeTool } from '../tools';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -238,18 +238,12 @@ When the user asks to push code, create a repo, or manage GitHub, use the approp
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="chat-panel">
       {/* Header */}
-      <div
-        className="toolbar"
-        style={{
-          background: 'var(--panel)',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
+      <div className="toolbar">
         <div className="flex items-center gap-2">
           <Sparkles size={16} style={{ color: 'var(--accent)' }} />
-          <span className="font-semibold" style={{ color: 'var(--text-strong)', fontSize: 'var(--text-sm)' }}>
+          <span className="font-semibold text-sm" style={{ color: 'var(--text-strong)' }}>
             AI Assistant
           </span>
           <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>
@@ -273,7 +267,7 @@ When the user asks to push code, create a repo, or manage GitHub, use the approp
 
           {showProviderPicker && (
             <div
-              className="absolute top-full right-0 mt-1 rounded-lg shadow-lg z-50 py-1 animate-fade-in"
+              className="absolute top-full right-0 mt-1 rounded-lg z-50 py-1 animate-fade-in"
               style={{
                 width: 280,
                 background: 'var(--panel)',
@@ -317,104 +311,45 @@ When the user asks to push code, create a repo, or manage GitHub, use the approp
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ background: 'var(--bg)' }}>
+      <div className="chat-messages">
         {messages.map((msg, index) => (
-          <div key={index} className={`flex gap-3 animate-fade-in ${msg.role === 'user' ? 'justify-end' : ''}`}>
-            {msg.role === 'assistant' && (
-              <div
-                className="flex items-center justify-center flex-shrink-0"
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 'var(--radius)',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <Bot size={18} style={{ color: 'var(--accent)' }} />
+          <div key={index} className={`message-bubble ${msg.role}`}>
+            {msg.role === 'user' && msg.images && msg.images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {msg.images.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt="uploaded"
+                    className="max-w-[200px] max-h-[150px] rounded"
+                    style={{ border: '1px solid rgba(255,255,255,0.2)' }}
+                  />
+                ))}
               </div>
             )}
-            <div
-              className="max-w-[70%] rounded-lg px-4 py-3"
-              style={{
-                background: msg.role === 'user' ? 'var(--accent)' : 'var(--panel)',
-                color: msg.role === 'user' ? '#ffffff' : 'var(--text)',
-                border: msg.role === 'user' ? 'none' : '1px solid var(--border)',
-              }}
-            >
-              {msg.role === 'user' ? (
-                <div>
-                  {msg.images && msg.images.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {msg.images.map((img, i) => (
-                        <img
-                          key={i}
-                          src={img}
-                          alt="uploaded"
-                          className="max-w-[200px] max-h-[150px] rounded"
-                          style={{ border: '1px solid rgba(255,255,255,0.2)' }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              ) : (
-                <div className="text-sm">{renderMessage(msg.content)}</div>
-              )}
-            </div>
-            {msg.role === 'user' && (
-              <div
-                className="flex items-center justify-center flex-shrink-0"
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 'var(--radius)',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <User size={18} style={{ color: 'var(--text)' }} />
-              </div>
+            {msg.role === 'user' ? (
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+            ) : (
+              <div className="text-sm">{renderMessage(msg.content)}</div>
             )}
           </div>
         ))}
         {isLoading && (
-          <div className="flex gap-3 animate-fade-in">
-            <div
-              className="flex items-center justify-center"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius)',
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              <Loader2 size={18} className="animate-spin" style={{ color: 'var(--accent)' }} />
-            </div>
-            <div
-              className="rounded-lg px-4 py-3"
-              style={{
-                background: 'var(--panel)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              <div className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="animate-spin"
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: 'var(--accent)',
-                      animationDelay: `${i * 150}ms`,
-                    }}
-                  />
-                ))}
-              </div>
+          <div className="message-bubble assistant">
+            <div className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="animate-spin"
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--accent)',
+                    animationDelay: `${i * 150}ms`,
+                  }}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -422,13 +357,7 @@ When the user asks to push code, create a repo, or manage GitHub, use the approp
       </div>
 
       {/* Input Area */}
-      <div
-        className="p-3"
-        style={{
-          background: 'var(--panel)',
-          borderTop: '1px solid var(--border)',
-        }}
-      >
+      <div className="chat-input-area">
         {images.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {images.map((img, i) => (

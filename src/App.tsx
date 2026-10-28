@@ -14,7 +14,7 @@ function AppContent() {
   const [activePanel, setActivePanel] = useState<'editor' | 'chat' | 'github' | 'files'>('editor');
   const [settings, setSettings] = useState<AppSettings>({
     providers: DEFAULT_PROVIDERS,
-    activeProviderId: 'anthropic',
+    activeProviderId: 'meta-muse',
     githubToken: '',
   });
   const [showSettings, setShowSettings] = useState(false);
@@ -30,7 +30,7 @@ function AppContent() {
 
   return (
     <AppContext.Provider value={{ settings, setSettings }}>
-      <div className="h-screen w-screen flex overflow-hidden" style={{ background: 'var(--bg)' }}>
+      <div className="app-shell">
         {/* Sidebar */}
         <Sidebar
           activePanel={activePanel}
@@ -41,20 +41,11 @@ function AppContent() {
         />
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Top Bar */}
-          <div
-            className="toolbar"
-            style={{
-              background: 'var(--panel)',
-              borderBottom: '1px solid var(--border)',
-            }}
-          >
+        <div className="main-content">
+          {/* Toolbar */}
+          <div className="toolbar">
             <div className="flex items-center gap-2">
-              <span
-                className="font-semibold"
-                style={{ color: 'var(--text-strong)', fontSize: 'var(--text-sm)' }}
-              >
+              <span className="font-semibold text-sm" style={{ color: 'var(--text-strong)' }}>
                 MetaCode IDE
               </span>
               <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>|</span>
@@ -89,7 +80,7 @@ function AppContent() {
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 flex overflow-hidden">
+          <div className="content-area">
             {activePanel === 'editor' && (
               <Editor files={files} setFiles={setFiles} activeFile={activeFile} setActiveFile={setActiveFile} />
             )}
