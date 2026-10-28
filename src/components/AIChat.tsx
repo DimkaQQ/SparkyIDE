@@ -3,7 +3,7 @@ import { Send, Bot, User, Sparkles, Loader2, ChevronDown, Paperclip, X } from 'l
 import { useAppContext, AIProvider } from '../context';
 import { useTheme } from '../ThemeContext';
 import { marked } from 'marked';
-import { githubTools, executeTool } from '../tools';
+import { openaiTools, executeTool } from '../tools';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -141,7 +141,7 @@ When the user asks to push code, create a repo, or manage GitHub, use the approp
         body: JSON.stringify({
           model: activeProvider.model,
           messages: apiMessages,
-          tools: githubTools,
+          tools: openaiTools,
           tool_choice: 'auto',
           max_tokens: 4096,
           temperature: 0.7,
