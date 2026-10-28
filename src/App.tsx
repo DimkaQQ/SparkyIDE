@@ -1,112 +1,175 @@
-import { useState } from 'react';
-import Sidebar from './components/Sidebar';
-import Editor from './components/Editor';
-import AIChat from './components/AIChat';
-import GitHubPanel from './components/GitHubPanel';
-import FileUpload from './components/FileUpload';
+import { useEffect } from 'react';
+import { GitBranch, PanelLeft, Plus, Settings as SettingsIcon, Wifi, WifiOff } from 'lucide-react';
+import ChatView from './components/ChatView';
+import EditorPane from './components/EditorPane';
+import GitHubView from './components/GitHubView';
+import Rail from './components/Rail';
+import SessionList from './components/SessionList';
 import SettingsModal from './components/SettingsModal';
-import { AppContext, AppSettings, DEFAULT_PROVIDERS } from './context';
-import { ThemeProvider, useTheme } from './ThemeContext';
-import { Wifi, WifiOff, GitBranch } from 'lucide-react';
+import WorkspacePanel from './components/WorkspacePanel';
+import { describeGitHubError, getViewer } from './github';
+import { discoverModels } from './providers';
+import { StoreProvider, useStore } from './state';
 
-function AppContent() {
-  const { theme, toggleTheme } = useTheme();
-  const [activePanel, setActivePanel] = useState<'editor' | 'chat' | 'github' | 'files'>('editor');
-  const [settings, setSettings] = useState<AppSettings>({
-    providers: DEFAULT_PROVIDERS,
-    activeProviderId: 'meta-muse',
-    githubToken: '',
-  });
-  const [showSettings, setShowSettings] = useState(false);
-  const [files, setFiles] = useState<{ name: string; content: string; language: string }[]>([
-    { name: 'main.js', content: '// Welcome to MetaCode IDE\n// Start coding or ask AI for help.\n\nconsole.log("Hello, World!");', language: 'javascript' },
-  ]);
-  const [activeFile, setActiveFile] = useState(0);
-  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; url: string; content?: string }[]>([]);
+function Shell() {
+  const {
+    mode,
+    setMode,
+    sidebarOpen,
+    setSidebarOpen,
+    activeSession,
+    editorPath,
+    activeProvider,
+    githubUser,
+    githubToken,
+    setGithubUser,
+    providers,
+    setProviders,
+    setSettingsOpen,
+    settingsOpen,
+    newSession,
+  } = useStore();
 
-  const activeProvider = settings.providers.find((p) => p.id === settings.activeProviderId);
-  const isConnected = !!activeProvider?.apiKey;
-  const ghConnected = !!settings.githubToken;
+  // Verify a stored GitHub token once at startup.
+  useEffect(() => {
+    if (!githubToken || githubUser) return;
+    let cancelled = false;
+    getViewer(githubToken)
+      .then((user) => {
+        if (!cancelled) setGithubUser(user);
+      })
+      .catch((error) => {
+        console.warn(describeGitHubError(error));
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Silently discover models for providers that already have a key.
+  useEffect(() => {
+    if (providers.length === 0) return;
+    let cancelled = false;
+    const targets = providers.filter((provider) => provider.apiKey && provider.models.length === 0);
+    if (targets.length === 0) return;
+
+    void (async () => {
+      for (const provider of targets) {
+        try {
+          const models = await discoverModels(provider);
+          if (cancelled || models.length === 0) continue;
+          setProviders((prev) =>
+            prev.map((entry) =>
+              entry.id === provider.id && entry.models.length === 0
+                ? {
+                    ...entry,
+                    models,
+                    modelsFetchedAt: Date.now(),
+                    model: models.includes(entry.model) ? entry.model : models[0],
+                  }
+                : entry,
+            ),
+          );
+        } catch {
+          /* ignore: the settings screen shows errors on demand */
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const hasKey = Boolean(activeProvider?.apiKey);
 
   return (
-    <AppContext.Provider value={{ settings, setSettings }}>
-      <div className="app-shell">
-        {/* Sidebar */}
-        <Sidebar
-          activePanel={activePanel}
-          setActivePanel={setActivePanel}
-          onOpenSettings={() => setShowSettings(true)}
-          theme={theme}
-          toggleTheme={toggleTheme}
-        />
+    <div className="app">
+      <Rail />
 
-        {/* Main Content */}
-        <div className="main-content">
-          {/* Toolbar */}
-          <div className="toolbar">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm" style={{ color: 'var(--text-strong)' }}>
-                MetaCode IDE
-              </span>
-              <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>|</span>
-              <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>
-                {files[activeFile]?.name || 'No file'}
-              </span>
-            </div>
+      <div className="shell">
+        <header className="topbar">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            title="Toggle sidebar"
+          >
+            <PanelLeft size={15} />
+          </button>
 
-            <div className="flex-1" />
+          <span className="topbar-title">
+            {mode === 'chat'
+              ? activeSession?.title ?? 'Chat'
+              : mode === 'code'
+                ? editorPath ?? 'Editor'
+                : 'GitHub'}
+          </span>
 
-            {/* Status indicators */}
-            <div className="flex items-center gap-3">
-              {activeProvider && (
-                <div className="flex items-center gap-2">
-                  {isConnected ? (
-                    <Wifi size={14} style={{ color: 'var(--success)' }} />
-                  ) : (
-                    <WifiOff size={14} style={{ color: 'var(--error)' }} />
-                  )}
-                  <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>
-                    {activeProvider.name.split(' ')[0]}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <GitBranch size={14} style={{ color: ghConnected ? 'var(--success)' : 'var(--muted)' }} />
-                <span style={{ color: 'var(--muted)', fontSize: 'var(--text-xs)' }}>
-                  {ghConnected ? 'GitHub' : 'No GitHub'}
-                </span>
-              </div>
-            </div>
-          </div>
+          <div className="spacer" />
 
-          {/* Content Area */}
-          <div className="content-area">
-            {activePanel === 'editor' && (
-              <Editor files={files} setFiles={setFiles} activeFile={activeFile} setActiveFile={setActiveFile} />
-            )}
-            {activePanel === 'chat' && <AIChat />}
-            {activePanel === 'github' && <GitHubPanel files={files} setFiles={setFiles} />}
-            {activePanel === 'files' && (
-              <FileUpload uploadedFiles={uploadedFiles} setUploadedFiles={setUploadedFiles} setFiles={setFiles} />
-            )}
-          </div>
+          {mode === 'chat' && (
+            <button type="button" className="btn btn-sm" onClick={newSession}>
+              <Plus size={12} /> New chat
+            </button>
+          )}
+
+          <button
+            type="button"
+            className={`status-chip ${hasKey ? 'ok' : ''}`}
+            onClick={() => setSettingsOpen(true)}
+            title={hasKey ? `Connected to ${activeProvider?.name}` : 'Add an API key'}
+          >
+            {hasKey ? <Wifi size={11} /> : <WifiOff size={11} />}
+            {activeProvider?.name ?? 'No provider'}
+          </button>
+
+          <button
+            type="button"
+            className={`status-chip ${githubUser ? 'ok' : ''}`}
+            onClick={() => setMode('github')}
+            title={githubUser ? `Signed in as @${githubUser.login}` : 'Connect GitHub'}
+          >
+            <GitBranch size={11} />
+            {githubUser ? `@${githubUser.login}` : 'GitHub'}
+          </button>
+
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setSettingsOpen(true)}
+            title="Settings"
+          >
+            <SettingsIcon size={15} />
+          </button>
+        </header>
+
+        <div className="body">
+          {sidebarOpen && mode !== 'github' && (
+            <aside className="sidebar">
+              {mode === 'chat' ? <SessionList /> : <WorkspacePanel />}
+            </aside>
+          )}
+
+          <main className="main">
+            {mode === 'chat' && <ChatView />}
+            {mode === 'code' && <EditorPane />}
+            {mode === 'github' && <GitHubView />}
+          </main>
         </div>
-
-        {/* Settings Modal */}
-        {showSettings && (
-          <SettingsModal settings={settings} setSettings={setSettings} onClose={() => setShowSettings(false)} />
-        )}
       </div>
-    </AppContext.Provider>
+
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+    </div>
   );
 }
 
-function App() {
+export default function App() {
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <StoreProvider>
+      <Shell />
+    </StoreProvider>
   );
 }
-
-export default App;

@@ -1,374 +1,561 @@
 import { useState } from 'react';
-import { X, Plus, Trash2, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
-import { AppSettings, AIProvider } from '../context';
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  EyeOff,
+  GitBranch,
+  KeyRound,
+  Loader2,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react';
+import {
+  PROVIDER_PRESETS,
+  discoverModels,
+  presetToProvider,
+  slug,
+} from '../providers';
+import { describeGitHubError, getViewer } from '../github';
+import { useStore } from '../state';
+import type { ApiFormat, ProviderConfig } from '../types';
+
+type Tab = 'providers' | 'github' | 'general';
 
 interface SettingsModalProps {
-  settings: AppSettings;
-  setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
   onClose: () => void;
 }
 
-const PRESET_TEMPLATES: Omit<AIProvider, 'apiKey'>[] = [
-  { id: '', name: 'Meta Muse (Spark)', baseUrl: 'https://api.meta.ai/v1', model: 'muse-spark-1.3', icon: 'M', color: '#0668E8', format: 'openai' },
-  { id: '', name: 'Meta Muse (Wonder)', baseUrl: 'https://api.meta.ai/v1', model: 'muse-wonder', icon: 'M', color: '#0668E8', format: 'openai' },
-  { id: '', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514', icon: 'A', color: '#d97706', format: 'anthropic', headers: { 'anthropic-version': '2023-06-01' } },
-  { id: '', name: 'OpenAI (GPT-4o)', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o', icon: 'O', color: '#10b981', format: 'openai' },
-  { id: '', name: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', icon: 'G', color: '#3b82f6', format: 'gemini' },
-  { id: '', name: 'OpenRouter (Any)', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-sonnet-4-20250514', icon: 'R', color: '#06b6d4', format: 'openai', headers: { 'HTTP-Referer': window.location.origin, 'X-Title': 'MetaCode IDE' } },
-  { id: '', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', icon: 'D', color: '#0ea5e9', format: 'openai' },
-  { id: '', name: 'Mistral AI', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', icon: 'M', color: '#f97316', format: 'openai' },
-  { id: '', name: 'Groq (Fast)', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', icon: 'Q', color: '#f59e0b', format: 'openai' },
-  { id: '', name: 'Custom / Self-hosted', baseUrl: 'http://localhost:11434/v1', model: 'custom-model', icon: 'C', color: '#6b7280', format: 'openai' },
-];
+export default function SettingsModal({ onClose }: SettingsModalProps) {
+  const {
+    providers,
+    setProviders,
+    activeProviderId,
+    setActiveProviderId,
+    githubToken,
+    setGithubToken,
+    githubUser,
+    setGithubUser,
+    theme,
+    toggleTheme,
+    resetAll,
+    workspace,
+  } = useStore();
 
-export default function SettingsModal({ settings, setSettings, onClose }: SettingsModalProps) {
-  const [localSettings, setLocalSettings] = useState<AppSettings>(JSON.parse(JSON.stringify(settings)));
-  const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
-  const [showAddProvider, setShowAddProvider] = useState(false);
-  const [newProvider, setNewProvider] = useState<Omit<AIProvider, 'apiKey'>>(PRESET_TEMPLATES[0]);
-  const [newApiKey, setNewApiKey] = useState('');
+  const [tab, setTab] = useState<Tab>('providers');
+  const [expanded, setExpanded] = useState<string | null>(activeProviderId);
+  const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [detecting, setDetecting] = useState<Set<string>>(new Set());
+  const [detectAllBusy, setDetectAllBusy] = useState(false);
+  const [notices, setNotices] = useState<
+    Record<string, { kind: 'ok' | 'error'; text: string }>
+  >({});
+  const [showAdd, setShowAdd] = useState(false);
 
-  const handleSave = () => {
-    setSettings(localSettings);
-    onClose();
+  const [tokenDraft, setTokenDraft] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+
+  const update = (id: string, patch: Partial<ProviderConfig>) => {
+    setProviders((prev) =>
+      prev.map((provider) => (provider.id === id ? { ...provider, ...patch } : provider)),
+    );
   };
 
-  const updateProvider = (id: string, updates: Partial<AIProvider>) => {
-    setLocalSettings((prev) => ({
-      ...prev,
-      providers: prev.providers.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-    }));
+  const setNotice = (id: string, notice: { kind: 'ok' | 'error'; text: string }) => {
+    setNotices((prev) => ({ ...prev, [id]: notice }));
+  };
+
+  const detect = async (provider: ProviderConfig) => {
+    setDetecting((prev) => new Set(prev).add(provider.id));
+    try {
+      const models = await discoverModels(provider);
+      update(provider.id, {
+        models,
+        modelsFetchedAt: Date.now(),
+        model: models.includes(provider.model) ? provider.model : models[0] ?? provider.model,
+      });
+      setNotice(provider.id, {
+        kind: 'ok',
+        text:
+          models.length > 0
+            ? `${models.length} model${models.length === 1 ? '' : 's'} available`
+            : 'The provider returned an empty model list.',
+      });
+    } catch (error) {
+      setNotice(provider.id, {
+        kind: 'error',
+        text: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setDetecting((prev) => {
+        const next = new Set(prev);
+        next.delete(provider.id);
+        return next;
+      });
+    }
+  };
+
+  const detectAll = async () => {
+    setDetectAllBusy(true);
+    const targets = providers.filter((provider) => provider.apiKey);
+    for (const provider of targets) {
+      await detect(provider);
+    }
+    setDetectAllBusy(false);
+  };
+
+  const addProvider = (name: string) => {
+    const preset = PROVIDER_PRESETS.find((entry) => entry.name === name);
+    if (!preset) return;
+    let id = slug(preset.name);
+    let suffix = 1;
+    while (providers.some((provider) => provider.id === id)) {
+      suffix += 1;
+      id = `${slug(preset.name)}-${suffix}`;
+    }
+    const provider = presetToProvider(preset, id);
+    setProviders((prev) => [...prev, provider]);
+    setExpanded(id);
+    setShowAdd(false);
+    setNotice(id, { kind: 'ok', text: 'Add your API key, then press Detect models.' });
   };
 
   const removeProvider = (id: string) => {
-    setLocalSettings((prev) => ({
-      ...prev,
-      providers: prev.providers.filter((p) => p.id !== id),
-      activeProviderId: prev.activeProviderId === id ? (prev.providers[0]?.id || '') : prev.activeProviderId,
-    }));
+    const remaining = providers.filter((provider) => provider.id !== id);
+    setProviders(remaining);
+    if (activeProviderId === id && remaining[0]) setActiveProviderId(remaining[0].id);
   };
 
-  const addProvider = () => {
-    const id = `custom-${Date.now()}`;
-    const provider: AIProvider = { ...newProvider, id, apiKey: newApiKey };
-    setLocalSettings((prev) => ({
-      ...prev,
-      providers: [...prev.providers, provider],
-      activeProviderId: prev.activeProviderId || id,
-    }));
-    setShowAddProvider(false);
-    setNewApiKey('');
+  const verifyGitHub = async () => {
+    const token = tokenDraft.trim() || githubToken;
+    if (!token) return;
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      const user = await getViewer(token);
+      setGithubToken(token);
+      setGithubUser(user);
+      setTokenDraft('');
+    } catch (error) {
+      setAuthError(describeGitHubError(error));
+    } finally {
+      setAuthBusy(false);
+    }
   };
+
+  const formatOptions: { value: ApiFormat; label: string }[] = [
+    { value: 'openai', label: 'OpenAI compatible' },
+    { value: 'anthropic', label: 'Anthropic (Claude)' },
+    { value: 'gemini', label: 'Google Gemini' },
+  ];
 
   return (
-    <div className="modal-overlay">
+    <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div className="modal">
-        {/* Header */}
-        <div className="modal-header">
-          <span className="font-semibold text-sm" style={{ color: 'var(--text-strong)' }}>
-            Settings
-          </span>
-          <button onClick={onClose} className="btn-icon">
-            <X size={16} />
+        <div className="modal-head">
+          <span className="modal-title">Settings</span>
+          <div className="spacer" />
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close settings">
+            <X size={15} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="modal-content">
-          <div className="space-y-3">
-            {/* Provider List */}
-            {localSettings.providers.map((provider) => (
-              <div
-                key={provider.id}
-                className="rounded"
-                style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  opacity: provider.apiKey ? 1 : 0.7,
-                }}
-              >
-                {/* Provider Header */}
-                <div
-                  className="flex items-center gap-3 p-3 cursor-pointer transition-colors"
-                  onClick={() => setExpandedProvider(expandedProvider === provider.id ? null : provider.id)}
-                  style={{ background: expandedProvider === provider.id ? 'var(--surface-hover)' : 'transparent' }}
+        <div className="settings-tabs">
+          <button
+            type="button"
+            className={`settings-tab ${tab === 'providers' ? 'active' : ''}`}
+            onClick={() => setTab('providers')}
+          >
+            <Sparkles size={13} /> AI providers
+          </button>
+          <button
+            type="button"
+            className={`settings-tab ${tab === 'github' ? 'active' : ''}`}
+            onClick={() => setTab('github')}
+          >
+            <GitBranch size={13} /> GitHub
+          </button>
+          <button
+            type="button"
+            className={`settings-tab ${tab === 'general' ? 'active' : ''}`}
+            onClick={() => setTab('general')}
+          >
+            General
+          </button>
+        </div>
+
+        <div className="settings-body">
+          {tab === 'providers' && (
+            <>
+              <div className="settings-hint">
+                <p>
+                  Connect any provider with an API key. Sparky asks each one for its model list
+                  automatically, so you always see the models your key can actually use.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => void detectAll()}
+                  disabled={detectAllBusy || providers.every((provider) => !provider.apiKey)}
                 >
-                  <div
-                    className="flex items-center justify-center font-bold text-white flex-shrink-0"
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 'var(--radius)',
-                      background: provider.color,
-                      fontSize: 'var(--text-xs)',
-                    }}
-                  >
-                    {provider.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                        {provider.name}
-                      </p>
-                      <span
-                        className="badge"
-                        style={{
-                          background: `${provider.color}20`,
-                          color: provider.color,
-                          border: `1px solid ${provider.color}40`,
-                          fontSize: 'var(--text-xs)',
-                        }}
-                      >
-                        {provider.format}
-                      </span>
-                    </div>
-                    <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>
-                      {provider.model}
-                    </p>
-                  </div>
-                  <div
-                    className="status-dot flex-shrink-0"
-                    style={{ background: provider.apiKey ? 'var(--success)' : 'var(--error)' }}
-                  />
-                  {expandedProvider === provider.id ? (
-                    <ChevronUp size={14} style={{ color: 'var(--muted)' }} />
-                  ) : (
-                    <ChevronDown size={14} style={{ color: 'var(--muted)' }} />
-                  )}
-                </div>
-
-                {/* Expanded Settings */}
-                {expandedProvider === provider.id && (
-                  <div className="p-3 pt-0 space-y-3 border-t animate-fade-in" style={{ borderColor: 'var(--border)' }}>
-                    <div className="pt-3">
-                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
-                        API Key
-                      </label>
-                      <input
-                        type="password"
-                        value={provider.apiKey}
-                        onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })}
-                        placeholder="Enter API key..."
-                        className="input"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
-                          Model
-                        </label>
-                        <input
-                          type="text"
-                          value={provider.model}
-                          onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
-                          className="input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
-                          Base URL
-                        </label>
-                        <input
-                          type="text"
-                          value={provider.baseUrl}
-                          onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })}
-                          className="input"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => setLocalSettings((prev) => ({ ...prev, activeProviderId: provider.id }))}
-                        className={localSettings.activeProviderId === provider.id ? 'btn-primary' : 'btn'}
-                      >
-                        {localSettings.activeProviderId === provider.id ? 'Active' : 'Set Active'}
-                      </button>
-                      <button
-                        onClick={() => removeProvider(provider.id)}
-                        className="btn"
-                        style={{ color: 'var(--error)', borderColor: 'var(--error)' }}
-                      >
-                        <Trash2 size={14} />
-                        <span>Remove</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  <RefreshCw size={12} className={detectAllBusy ? 'spin' : ''} />
+                  Detect all
+                </button>
               </div>
-            ))}
 
-            {/* Add Provider */}
-            {showAddProvider ? (
-              <div
-                className="rounded p-4 space-y-3 animate-fade-in"
-                style={{
-                  background: 'var(--surface)',
-                  border: '1px solid var(--accent)',
-                }}
-              >
-                <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--accent)' }}>
-                  <Plus size={14} /> Add New Provider
-                </h3>
-
-                {/* Template Selector */}
-                <div>
-                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--muted)' }}>
-                    Quick Template
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {PRESET_TEMPLATES.map((template, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setNewProvider(template)}
-                        className={`flex items-center gap-2 p-2 rounded text-left text-xs transition-colors ${
-                          newProvider.name === template.name ? 'btn-primary' : 'btn'
-                        }`}
+              {providers.map((provider) => {
+                const isOpen = expanded === provider.id;
+                const isRevealed = revealed.has(provider.id);
+                const isDetecting = detecting.has(provider.id);
+                const notice = notices[provider.id];
+                return (
+                  <div key={provider.id} className="provider-card">
+                    <button
+                      type="button"
+                      className="provider-head"
+                      onClick={() => setExpanded(isOpen ? null : provider.id)}
+                    >
+                      <span
+                        className="provider-icon"
+                        style={{ background: provider.color }}
                       >
-                        <div
-                          className="flex items-center justify-center font-bold text-white flex-shrink-0"
-                          style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 'var(--radius-sm)',
-                            background: template.color,
-                            fontSize: 'var(--text-xs)',
-                          }}
-                        >
-                          {template.icon}
+                        {provider.icon}
+                      </span>
+                      <span className="provider-info">
+                        <span className="provider-name">{provider.name}</span>
+                        <span className="provider-sub">
+                          {provider.model || 'no model'} · {provider.format}
+                          {provider.models.length > 0 ? ` · ${provider.models.length} models` : ''}
+                        </span>
+                      </span>
+                      <span className={`key-dot ${provider.apiKey ? 'ok' : ''}`} />
+                      {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+
+                    {isOpen && (
+                      <div className="provider-form">
+                        <div className="field">
+                          <label htmlFor={`key-${provider.id}`}>API key</label>
+                          <div className="input-with-action">
+                            <input
+                              id={`key-${provider.id}`}
+                              className="input"
+                              type={isRevealed ? 'text' : 'password'}
+                              value={provider.apiKey}
+                              placeholder="sk-… / ghp_… / AIza…"
+                              onChange={(event) =>
+                                update(provider.id, { apiKey: event.target.value.trim() })
+                              }
+                            />
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              title={isRevealed ? 'Hide key' : 'Show key'}
+                              onClick={() =>
+                                setRevealed((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(provider.id)) next.delete(provider.id);
+                                  else next.add(provider.id);
+                                  return next;
+                                })
+                              }
+                            >
+                              {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                            </button>
+                          </div>
                         </div>
-                        <span className="truncate font-medium">{template.name}</span>
+
+                        <div className="form-row">
+                          <div className="field">
+                            <label htmlFor={`url-${provider.id}`}>Base URL</label>
+                            <input
+                              id={`url-${provider.id}`}
+                              className="input"
+                              value={provider.baseUrl}
+                              onChange={(event) =>
+                                update(provider.id, { baseUrl: event.target.value.trim() })
+                              }
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`format-${provider.id}`}>API format</label>
+                            <select
+                              id={`format-${provider.id}`}
+                              className="select"
+                              value={provider.format}
+                              onChange={(event) =>
+                                update(provider.id, {
+                                  format: event.target.value as ApiFormat,
+                                  models: [],
+                                })
+                              }
+                            >
+                              {formatOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="field">
+                          <label htmlFor={`model-${provider.id}`}>Model</label>
+                          <input
+                            id={`model-${provider.id}`}
+                            className="input"
+                            value={provider.model}
+                            onChange={(event) =>
+                              update(provider.id, { model: event.target.value.trim() })
+                            }
+                          />
+                        </div>
+
+                        <div className="provider-actions">
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => void detect(provider)}
+                            disabled={isDetecting}
+                          >
+                            {isDetecting ? (
+                              <Loader2 size={12} className="spin" />
+                            ) : (
+                              <RefreshCw size={12} />
+                            )}
+                            Detect models
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-sm ${activeProviderId === provider.id ? 'active' : ''}`}
+                            onClick={() => setActiveProviderId(provider.id)}
+                          >
+                            {activeProviderId === provider.id ? (
+                              <>
+                                <Check size={12} /> Active
+                              </>
+                            ) : (
+                              'Use this provider'
+                            )}
+                          </button>
+                          <div className="spacer" />
+                          <button
+                            type="button"
+                            className="btn btn-sm danger"
+                            onClick={() => removeProvider(provider.id)}
+                            disabled={providers.length <= 1}
+                          >
+                            <Trash2 size={12} /> Remove
+                          </button>
+                        </div>
+
+                        {notice && (
+                          <div className={`notice ${notice.kind === 'ok' ? 'ok' : 'error'}`}>
+                            {notice.kind === 'ok' ? (
+                              <Check size={13} />
+                            ) : (
+                              <AlertTriangle size={13} />
+                            )}
+                            <span>{notice.text}</span>
+                          </div>
+                        )}
+
+                        {provider.models.length > 0 && (
+                          <div className="model-chips">
+                            {provider.models.map((model) => (
+                              <button
+                                key={model}
+                                type="button"
+                                className={`model-chip ${provider.model === model ? 'selected' : ''}`}
+                                onClick={() => update(provider.id, { model })}
+                              >
+                                {model}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {showAdd ? (
+                <div className="add-provider">
+                  <div className="add-provider-head">
+                    <span>Add a provider</span>
+                    <button type="button" className="icon-btn" onClick={() => setShowAdd(false)}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                  <div className="add-grid">
+                    {PROVIDER_PRESETS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        className="add-card"
+                        onClick={() => addProvider(preset.name)}
+                      >
+                        <span className="provider-icon" style={{ background: preset.color }}>
+                          {preset.icon}
+                        </span>
+                        <span>
+                          <span className="add-card-name">{preset.name}</span>
+                          <span className="add-card-sub">{preset.format}</span>
+                        </span>
                       </button>
                     ))}
                   </div>
                 </div>
+              ) : (
+                <button type="button" className="add-btn" onClick={() => setShowAdd(true)}>
+                  <Plus size={14} /> Add AI provider
+                </button>
+              )}
+            </>
+          )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newProvider.name}
-                      onChange={(e) => setNewProvider({ ...newProvider, name: e.target.value })}
-                      className="input"
-                    />
+          {tab === 'github' && (
+            <>
+              <div className="settings-hint">
+                <p>
+                  A personal access token lets Sparky list repositories, read files, push commits
+                  and open pull requests. It is stored only in this browser.
+                </p>
+                <a
+                  className="btn btn-sm"
+                  href="https://github.com/settings/tokens/new?scopes=repo&description=Sparky%20IDE"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <KeyRound size={12} /> Create token
+                </a>
+              </div>
+
+              {githubUser ? (
+                <div className="gh-user-card">
+                  <img src={githubUser.avatarUrl} alt={githubUser.login} className="gh-avatar" />
+                  <div className="gh-account-text">
+                    <span className="gh-login">@{githubUser.login}</span>
+                    <span className="muted-small">Connected · repo scope</span>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
-                      Format
-                    </label>
-                    <select
-                      value={newProvider.format}
-                      onChange={(e) => setNewProvider({ ...newProvider, format: e.target.value as any })}
-                      className="input"
-                    >
-                      <option value="openai">OpenAI Compatible</option>
-                      <option value="anthropic">Anthropic (Claude)</option>
-                      <option value="gemini">Google Gemini</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
-                    Base URL
-                  </label>
-                  <input
-                    type="text"
-                    value={newProvider.baseUrl}
-                    onChange={(e) => setNewProvider({ ...newProvider, baseUrl: e.target.value })}
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
-                    Model
-                  </label>
-                  <input
-                    type="text"
-                    value={newProvider.model}
-                    onChange={(e) => setNewProvider({ ...newProvider, model: e.target.value })}
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
-                    API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={newApiKey}
-                    onChange={(e) => setNewApiKey(e.target.value)}
-                    placeholder="Enter API key..."
-                    className="input"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => setShowAddProvider(false)} className="btn">
-                    Cancel
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => {
+                      setGithubToken('');
+                      setGithubUser(null);
+                    }}
+                  >
+                    Disconnect
                   </button>
-                  <button onClick={addProvider} className="btn-primary">
-                    Add Provider
+                </div>
+              ) : (
+                <div className="notice">
+                  <GitBranch size={13} />
+                  <span>No GitHub account connected yet.</span>
+                </div>
+              )}
+
+              <div className="field">
+                <label htmlFor="gh-token">
+                  {githubUser ? 'Replace token' : 'Personal access token'}
+                </label>
+                <input
+                  id="gh-token"
+                  className="input"
+                  type="password"
+                  value={tokenDraft}
+                  onChange={(event) => setTokenDraft(event.target.value)}
+                  placeholder="ghp_… or github_pat_…"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void verifyGitHub();
+                  }}
+                />
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => void verifyGitHub()}
+                  disabled={authBusy || (!tokenDraft.trim() && !githubToken)}
+                >
+                  {authBusy ? <Loader2 size={13} className="spin" /> : <GitBranch size={13} />}
+                  Verify and save
+                </button>
+              </div>
+
+              {authError && (
+                <div className="notice error">
+                  <AlertTriangle size={13} /> {authError}
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === 'general' && (
+            <>
+              <div className="gh-card">
+                <h3>Appearance</h3>
+                <p>Sparky adapts its palette to the editor.</p>
+                <div>
+                  <button type="button" className="btn btn-sm" onClick={toggleTheme}>
+                    Switch to {theme === 'dark' ? 'light' : 'dark'} theme
                   </button>
                 </div>
               </div>
-            ) : (
-              <button
-                onClick={() => setShowAddProvider(true)}
-                className="w-full rounded p-3 flex items-center justify-center gap-2 transition-colors"
-                style={{
-                  border: '2px dashed var(--border)',
-                  color: 'var(--muted)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)';
-                  e.currentTarget.style.color = 'var(--accent)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.color = 'var(--muted)';
-                }}
-              >
-                <Plus size={16} />
-                <span className="text-sm font-medium">Add AI Provider</span>
-              </button>
-            )}
 
-            {/* GitHub Token */}
-            <div className="border-t pt-4 mt-4" style={{ borderColor: 'var(--border)' }}>
-              <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>
-                GitHub Token
-              </label>
-              <input
-                type="password"
-                value={localSettings.githubToken}
-                onChange={(e) => setLocalSettings({ ...localSettings, githubToken: e.target.value })}
-                placeholder="ghp_..."
-                className="input"
-              />
-              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--muted)' }}>
-                <a
-                  href="https://github.com/settings/tokens"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  Create token <ExternalLink size={10} />
-                </a>
-                <span>(needs repo scope)</span>
-              </p>
-            </div>
-          </div>
+              <div className="gh-card">
+                <h3>Workspace</h3>
+                <p>
+                  {Object.keys(workspace).length} files ·{' '}
+                  {(
+                    Object.values(workspace).reduce((sum, content) => sum + new Blob([content]).size, 0) /
+                    1024
+                  ).toFixed(1)}{' '}
+                  KB stored in this browser.
+                </p>
+              </div>
+
+              <div className="gh-card">
+                <h3>
+                  <RotateCcw size={14} /> Reset everything
+                </h3>
+                <p>
+                  Deletes chats, the workspace, provider keys and the GitHub token from this
+                  browser. This cannot be undone.
+                </p>
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-sm danger"
+                    onClick={() => {
+                      if (window.confirm('Reset all Sparky IDE data in this browser?')) resetAll();
+                    }}
+                  >
+                    <Trash2 size={12} /> Reset data
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="modal-footer">
-          <button onClick={onClose} className="btn">
-            Cancel
-          </button>
-          <button onClick={handleSave} className="btn-primary">
-            Save
+        <div className="modal-foot">
+          <span className="modal-note">
+            Keys never leave your browser except when calling the provider you configured.
+          </span>
+          <div className="spacer" />
+          <button type="button" className="btn btn-primary" onClick={onClose}>
+            Done
           </button>
         </div>
       </div>
