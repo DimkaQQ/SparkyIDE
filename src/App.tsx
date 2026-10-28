@@ -5,14 +5,14 @@ import AIChat from './components/AIChat';
 import GitHubPanel from './components/GitHubPanel';
 import FileUpload from './components/FileUpload';
 import SettingsModal from './components/SettingsModal';
-import { AppContext, AppSettings } from './context';
+import { AppContext, AppSettings, DEFAULT_PROVIDERS } from './context';
 
 function App() {
   const [activePanel, setActivePanel] = useState<'editor' | 'chat' | 'github' | 'files'>('editor');
   const [settings, setSettings] = useState<AppSettings>({
-    metaApiKey: '',
+    providers: DEFAULT_PROVIDERS,
+    activeProviderId: 'anthropic',
     githubToken: '',
-    model: 'llama-3.1-70b',
   });
   const [showSettings, setShowSettings] = useState(false);
   const [files, setFiles] = useState<{ name: string; content: string; language: string }[]>([
@@ -20,6 +20,10 @@ function App() {
   ]);
   const [activeFile, setActiveFile] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; url: string; content?: string }[]>([]);
+
+  const activeProvider = settings.providers.find((p) => p.id === settings.activeProviderId);
+  const isConnected = !!activeProvider?.apiKey;
+  const ghConnected = !!settings.githubToken;
 
   return (
     <AppContext.Provider value={{ settings, setSettings }}>
@@ -43,13 +47,17 @@ function App() {
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`w-2 h-2 rounded-full ${settings.metaApiKey ? 'bg-green-400' : 'bg-red-400'}`}></span>
+              {activeProvider && (
+                <>
+                  <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></span>
+                  <span className="text-xs text-gray-400">
+                    {activeProvider.icon} {activeProvider.name} {isConnected ? '✓' : '(no key)'}
+                  </span>
+                </>
+              )}
+              <span className={`w-2 h-2 rounded-full ${ghConnected ? 'bg-green-400' : 'bg-red-400'}`}></span>
               <span className="text-xs text-gray-400">
-                {settings.metaApiKey ? 'AI Connected' : 'AI Not Connected'}
-              </span>
-              <span className={`w-2 h-2 rounded-full ${settings.githubToken ? 'bg-green-400' : 'bg-red-400'}`}></span>
-              <span className="text-xs text-gray-400">
-                {settings.githubToken ? 'GitHub Connected' : 'GitHub Not Connected'}
+                {ghConnected ? 'GitHub ✓' : 'GitHub'}
               </span>
             </div>
           </div>

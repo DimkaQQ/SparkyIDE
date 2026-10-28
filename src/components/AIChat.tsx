@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Loader2, Image } from 'lucide-react';
-import { useAppContext } from '../context';
+import { Send, Bot, User, Sparkles, Loader2, Image, ChevronDown } from 'lucide-react';
+import { useAppContext, AIProvider } from '../context';
 import { marked } from 'marked';
 
 interface Message {
@@ -10,16 +10,19 @@ interface Message {
 }
 
 export default function AIChat() {
-  const { settings } = useAppContext();
+  const { settings, setSettings } = useAppContext();
+  const activeProvider = settings.providers.find((p) => p.id === settings.activeProviderId);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "👋 Привет! Я AI-ассистент на базе Meta Llama. Я могу помочь тебе с кодом, объяснить концепции, написать функции и многое другое. Задавай вопросы или загружай фото для анализа!",
+      content: '👋 Привет! Я AI-ассистент. Я могу работать с любым провайдером — Claude, GPT, Gemini, Llama и другими. Выбери провайдера сверху и задавай вопросы! Можно загружать фото для анализа.',
     },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,12 +44,191 @@ export default function AIChat() {
     });
   };
 
+  const switchProvider = (providerId: string) => {
+    setSettings((prev) => ({ ...prev, activeProviderId: providerId }));
+    setShowProviderPicker(false);
+  };
+
+  // === API Call Functions for different providers ===
+
+  const callOpenAICompatible = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
+    const apiMessages: any[] = [
+      { role: 'system', content: 'You are a helpful coding assistant. Format code with ```language blocks. Be concise but thorough.' },
+    ];
+
+    for (const msg of msgs) {
+      if (msg.role === 'system') continue;
+      if (msg.role === 'user' && msg.images && msg.images.length > 0) {
+        apiMessages.push({
+          role: 'user',
+          content: [
+            { type: 'text', text: msg.content },
+            ...msg.images.map((img) => ({ type: 'image_url', image_url: { url: img } })),
+          ],
+        });
+      } else {
+        apiMessages.push({ role: msg.role, content: msg.content });
+      }
+    }
+
+    // Add current message with images if any
+    if (imgs.length > 0) {
+      apiMessages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: userInput || 'Describe this image' },
+          ...imgs.map((img) => ({ type: 'image_url', image_url: { url: img } })),
+        ],
+      });
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${provider.apiKey}`,
+      ...provider.headers,
+    };
+
+    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: provider.model,
+        messages: apiMessages,
+        max_tokens: 4096,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`${response.status}: ${err}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || 'No response.';
+  };
+
+  const callAnthropic = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
+    const apiMessages: any[] = [];
+
+    for (const msg of msgs) {
+      if (msg.role === 'system') continue;
+      if (msg.role === 'user' && msg.images && msg.images.length > 0) {
+        apiMessages.push({
+          role: 'user',
+          content: [
+            { type: 'text', text: msg.content },
+            ...msg.images.map((img) => {
+              const base64 = img.split(',')[1];
+              const mediaType = img.split(';')[0].split(':')[1];
+              return { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
+            }),
+          ],
+        });
+      } else {
+        apiMessages.push({ role: msg.role, content: msg.content });
+      }
+    }
+
+    if (imgs.length > 0) {
+      apiMessages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: userInput || 'Describe this image' },
+          ...imgs.map((img) => {
+            const base64 = img.split(',')[1];
+            const mediaType = img.split(';')[0].split(':')[1];
+            return { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
+          }),
+        ],
+      });
+    }
+
+    const response = await fetch(`${provider.baseUrl}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': provider.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        ...provider.headers,
+      },
+      body: JSON.stringify({
+        model: provider.model,
+        max_tokens: 4096,
+        system: 'You are a helpful coding assistant. Format code with ```language blocks. Be concise but thorough.',
+        messages: apiMessages,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`${response.status}: ${err}`);
+    }
+
+    const data = await response.json();
+    return data.content?.[0]?.text || 'No response.';
+  };
+
+  const callGemini = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
+    const contents: any[] = [];
+
+    for (const msg of msgs) {
+      if (msg.role === 'system') continue;
+      const role = msg.role === 'assistant' ? 'model' : 'user';
+      const parts: any[] = [{ text: msg.content }];
+
+      if (msg.images && msg.images.length > 0) {
+        for (const img of msg.images) {
+          const base64 = img.split(',')[1];
+          const mimeType = img.split(';')[0].split(':')[1];
+          parts.push({ inline_data: { mime_type: mimeType, data: base64 } });
+        }
+      }
+      contents.push({ role, parts });
+    }
+
+    if (imgs.length > 0) {
+      const parts: any[] = [{ text: userInput || 'Describe this image' }];
+      for (const img of imgs) {
+        const base64 = img.split(',')[1];
+        const mimeType = img.split(';')[0].split(':')[1];
+        parts.push({ inline_data: { mime_type: mimeType, data: base64 } });
+      }
+      contents.push({ role: 'user', parts });
+    }
+
+    const url = `${provider.baseUrl}/models/${provider.model}:generateContent?key=${provider.apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: { parts: [{ text: 'You are a helpful coding assistant. Format code with ```language blocks. Be concise but thorough.' }] },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`${response.status}: ${err}`);
+    }
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+  };
+
   const sendMessage = async () => {
     if (!input.trim() && images.length === 0) return;
-    if (!settings.metaApiKey) {
+    if (!activeProvider) {
+      setMessages((prev) => [...prev, { role: 'assistant', content: '⚠️ Выбери AI-провайдер!' }]);
+      return;
+    }
+    if (!activeProvider.apiKey) {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: '⚠️ Пожалуйста, укажи API ключ Meta в настройках (кнопка шестерёнки внизу сайдбара).' },
+        { role: 'assistant', content: `⚠️ API ключ для ${activeProvider.name} не установлен. Открой настройки (⚙️) и добавь ключ.` },
       ]);
       return;
     }
@@ -57,64 +239,32 @@ export default function AIChat() {
       images: images.length > 0 ? [...images] : undefined,
     };
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
+    const currentImages = [...images];
     setInput('');
     setImages([]);
     setIsLoading(true);
 
     try {
-      const apiMessages = messages
-        .filter((m) => m.role !== 'system' || m.content)
-        .map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
-
-      // Using Meta Llama API via Together AI or similar endpoint
-      const response = await fetch('https://api.together.xyz/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${settings.metaApiKey}`,
-        },
-        body: JSON.stringify({
-          model: `meta-llama/${settings.model}`,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a helpful coding assistant. You help with programming, debugging, code review, and explaining concepts. Format code blocks with ```language syntax. Be concise but thorough.',
-            },
-            ...apiMessages,
-            ...(images.length > 0
-              ? [
-                  {
-                    role: 'user' as const,
-                    content: [
-                      { type: 'text', text: input || 'Describe this image' },
-                      ...images.map((img) => ({ type: 'image_url', image_url: { url: img } })),
-                    ],
-                  },
-                ]
-              : []),
-          ],
-          max_tokens: 4096,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`API Error: ${response.status} - ${error}`);
+      let response: string;
+      switch (activeProvider.format) {
+        case 'anthropic':
+          response = await callAnthropic(activeProvider, messages, currentImages, currentInput);
+          break;
+        case 'gemini':
+          response = await callGemini(activeProvider, messages, currentImages, currentInput);
+          break;
+        default:
+          response = await callOpenAICompatible(activeProvider, messages, currentImages, currentInput);
+          break;
       }
-
-      const data = await response.json();
-      const assistantMessage = data.choices?.[0]?.message?.content || 'No response received.';
-      setMessages((prev) => [...prev, { role: 'assistant', content: assistantMessage }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: response }]);
     } catch (error: any) {
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `❌ Ошибка: ${error.message}\n\nУбедись, что API ключ правильный и у тебя есть доступ к Meta Llama API через Together AI (https://api.together.xyz).`,
+          content: `❌ Ошибка (${activeProvider.name}): ${error.message}\n\nПроверь API ключ и настройки провайдера.`,
         },
       ]);
     } finally {
@@ -127,13 +277,69 @@ export default function AIChat() {
     return <div className="prose prose-invert prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
   };
 
+  const configuredProviders = settings.providers.filter((p) => p.apiKey);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
+      {/* Header with Provider Picker */}
       <div className="h-12 bg-[#181825] border-b border-[#313244] flex items-center px-4 gap-2">
         <Sparkles size={18} className="text-purple-400" />
         <span className="font-medium text-sm">AI Assistant</span>
-        <span className="text-xs text-gray-500 ml-2">Meta Llama {settings.model}</span>
+
+        {/* Provider Switcher */}
+        <div className="relative ml-3">
+          <button
+            onClick={() => setShowProviderPicker(!showProviderPicker)}
+            className="flex items-center gap-1.5 bg-[#313244] px-3 py-1.5 rounded-lg text-sm hover:bg-[#45475a] transition-colors"
+            style={{ borderLeft: `3px solid ${activeProvider?.color || '#8b5cf6'}` }}
+          >
+            <span>{activeProvider?.icon}</span>
+            <span className="text-gray-300">{activeProvider?.name || 'Select Provider'}</span>
+            <ChevronDown size={14} className="text-gray-400" />
+          </button>
+
+          {showProviderPicker && (
+            <div className="absolute top-full left-0 mt-1 bg-[#1e1e2e] border border-[#313244] rounded-xl shadow-2xl z-50 w-72 py-2 max-h-80 overflow-y-auto">
+              <div className="px-3 py-1.5 text-xs text-gray-500 font-medium">CONFIGURED</div>
+              {settings.providers.map((provider) => (
+                <button
+                  key={provider.id}
+                  onClick={() => switchProvider(provider.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-[#313244] transition-colors text-left ${
+                    provider.id === settings.activeProviderId ? 'bg-[#313244]' : ''
+                  }`}
+                >
+                  <span className="text-lg">{provider.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-200 truncate">{provider.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{provider.model}</p>
+                  </div>
+                  {provider.apiKey ? (
+                    <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>
+                  )}
+                </button>
+              ))}
+              <div className="border-t border-[#313244] mt-1 pt-1">
+                <button
+                  onClick={() => {
+                    setShowProviderPicker(false);
+                    // Trigger settings open
+                    document.querySelector<HTMLButtonElement>('[title="Settings"]')?.click();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-purple-400 hover:bg-[#313244] transition-colors"
+                >
+                  + Add Custom Provider
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <span className="text-xs text-gray-500 ml-auto">
+          {configuredProviders.length} provider{configuredProviders.length !== 1 ? 's' : ''} ready
+        </span>
       </div>
 
       {/* Messages */}
@@ -141,15 +347,16 @@ export default function AIChat() {
         {messages.map((msg, index) => (
           <div key={index} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
             {msg.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center flex-shrink-0">
-                <Bot size={16} className="text-purple-400" />
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${activeProvider?.color || '#8b5cf6'}20` }}
+              >
+                <Bot size={16} style={{ color: activeProvider?.color || '#8b5cf6' }} />
               </div>
             )}
             <div
               className={`max-w-[80%] rounded-xl px-4 py-3 ${
-                msg.role === 'user'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-[#313244] text-gray-200'
+                msg.role === 'user' ? 'bg-purple-600 text-white' : 'bg-[#313244] text-gray-200'
               }`}
             >
               {msg.role === 'user' ? (
@@ -176,8 +383,11 @@ export default function AIChat() {
         ))}
         {isLoading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center">
-              <Loader2 size={16} className="text-purple-400 animate-spin" />
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: `${activeProvider?.color || '#8b5cf6'}20` }}
+            >
+              <Loader2 size={16} className="animate-spin" style={{ color: activeProvider?.color || '#8b5cf6' }} />
             </div>
             <div className="bg-[#313244] rounded-xl px-4 py-3">
               <div className="flex gap-1">
@@ -229,13 +439,14 @@ export default function AIChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-            placeholder="Ask AI anything..."
+            placeholder={`Ask ${activeProvider?.name || 'AI'} anything...`}
             className="flex-1 bg-[#313244] text-white text-sm px-4 py-2.5 rounded-xl border border-[#45475a] focus:border-purple-500 focus:outline-none placeholder-gray-500"
           />
           <button
             onClick={sendMessage}
             disabled={isLoading || (!input.trim() && images.length === 0)}
-            className="p-2.5 rounded-xl bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-2.5 rounded-xl text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            style={{ backgroundColor: activeProvider?.color || '#8b5cf6' }}
           >
             <Send size={18} />
           </button>
