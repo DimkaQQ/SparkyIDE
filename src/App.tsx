@@ -18,7 +18,7 @@ function AppContent() {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [files, setFiles] = useState<{ name: string; content: string; language: string }[]>([
-    { name: 'main.js', content: '// Welcome to MetaCode IDE!\n// Start coding or ask AI for help.\n\nfunction greet(name) {\n  return `Hello, ${name}! 👋`;\n}\n\nconsole.log(greet("Developer"));', language: 'javascript' },
+    { name: 'main.js', content: '// ✨ Welcome to MetaCode IDE\n// Your AI-powered development environment\n\nfunction greet(name) {\n  return `Hello, ${name}! 👋`;\n}\n\nconsole.log(greet("Developer"));', language: 'javascript' },
   ]);
   const [activeFile, setActiveFile] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; url: string; content?: string }[]>([]);
@@ -29,7 +29,12 @@ function AppContent() {
 
   return (
     <AppContext.Provider value={{ settings, setSettings }}>
-      <div className="h-screen w-screen flex overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+      <div className="h-screen w-screen flex overflow-hidden relative" style={{ background: 'var(--bg-primary)' }}>
+        {/* Decorative Background Elements */}
+        <div className="absolute inset-0 pointer-events-none mesh-gradient opacity-50" />
+        <div className="glow-orb glow-orb-1" />
+        <div className="glow-orb glow-orb-2" />
+
         {/* Sidebar */}
         <Sidebar
           activePanel={activePanel}
@@ -40,55 +45,64 @@ function AppContent() {
         />
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden relative">
           {/* Top Bar */}
           <div
-            className="h-12 flex items-center px-5 justify-between border-b"
+            className="h-14 flex items-center px-6 justify-between border-b relative z-10"
             style={{
-              background: 'var(--bg-secondary)',
+              background: 'var(--bg-glass)',
               borderColor: 'var(--border-primary)',
-              boxShadow: 'var(--shadow-sm)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             }}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs"
-                style={{ background: 'var(--accent-gradient)' }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm gradient-bg shadow-glow"
               >
                 M
               </div>
-              <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                MetaCode IDE
-              </span>
-              <div className="h-4 w-px" style={{ background: 'var(--border-primary)' }} />
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {files[activeFile]?.name || 'No file'}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-sm tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                  MetaCode
+                </span>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-accent)' }}>
+                  IDE
+                </span>
+              </div>
+              <div className="h-5 w-px mx-2" style={{ background: 'var(--border-secondary)' }} />
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-primary)' }} />
+                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  {files[activeFile]?.name || 'No file'}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-5">
               {activeProvider && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                  <span className="text-sm">{activeProvider.icon}</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    {activeProvider.name.split(' ')[0]}
+                  </span>
                   <div
-                    className={`w-2 h-2 rounded-full ${isConnected ? '' : ''}`}
+                    className="w-2 h-2 rounded-full"
                     style={{ background: isConnected ? 'var(--success)' : 'var(--error)' }}
                   />
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {activeProvider.icon} {activeProvider.name.split(' ')[0]}
-                  </span>
                 </div>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>GitHub</span>
                 <div
                   className="w-2 h-2 rounded-full"
                   style={{ background: ghConnected ? 'var(--success)' : 'var(--error)' }}
                 />
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>GitHub</span>
               </div>
             </div>
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex overflow-hidden relative z-10">
             {activePanel === 'editor' && (
               <Editor files={files} setFiles={setFiles} activeFile={activeFile} setActiveFile={setActiveFile} />
             )}
