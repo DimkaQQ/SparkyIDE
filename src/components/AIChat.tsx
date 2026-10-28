@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Loader2, ChevronDown, Paperclip, X } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, ChevronDown, Paperclip, X, Wrench } from 'lucide-react';
 import { useAppContext, AIProvider } from '../context';
 import { useTheme } from '../ThemeContext';
 import { marked } from 'marked';
+import { githubTools, executeTool, ToolCall, ToolResult } from '../tools';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -51,151 +52,6 @@ export default function AIChat() {
     setShowProviderPicker(false);
   };
 
-  // === API Call Functions ===
-  const callOpenAICompatible = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
-    const apiMessages: any[] = [
-      { role: 'system', content: 'You are a helpful coding assistant. Format code with ```language blocks.' },
-    ];
-    for (const msg of msgs) {
-      if (msg.role === 'system') continue;
-      if (msg.role === 'user' && msg.images && msg.images.length > 0) {
-        apiMessages.push({
-          role: 'user',
-          content: [
-            { type: 'text', text: msg.content },
-            ...msg.images.map((img) => ({ type: 'image_url', image_url: { url: img } })),
-          ],
-        });
-      } else {
-        apiMessages.push({ role: msg.role, content: msg.content });
-      }
-    }
-    if (imgs.length > 0) {
-      apiMessages.push({
-        role: 'user',
-        content: [
-          { type: 'text', text: userInput || 'Describe this image' },
-          ...imgs.map((img) => ({ type: 'image_url', image_url: { url: img } })),
-        ],
-      });
-    }
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${provider.apiKey}`,
-      ...provider.headers,
-    };
-    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ model: provider.model, messages: apiMessages, max_tokens: 4096, temperature: 0.7 }),
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`${response.status}: ${err}`);
-    }
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || 'No response.';
-  };
-
-  const callAnthropic = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
-    const apiMessages: any[] = [];
-    for (const msg of msgs) {
-      if (msg.role === 'system') continue;
-      if (msg.role === 'user' && msg.images && msg.images.length > 0) {
-        apiMessages.push({
-          role: 'user',
-          content: [
-            { type: 'text', text: msg.content },
-            ...msg.images.map((img) => {
-              const base64 = img.split(',')[1];
-              const mediaType = img.split(';')[0].split(':')[1];
-              return { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
-            }),
-          ],
-        });
-      } else {
-        apiMessages.push({ role: msg.role, content: msg.content });
-      }
-    }
-    if (imgs.length > 0) {
-      apiMessages.push({
-        role: 'user',
-        content: [
-          { type: 'text', text: userInput || 'Describe this image' },
-          ...imgs.map((img) => {
-            const base64 = img.split(',')[1];
-            const mediaType = img.split(';')[0].split(':')[1];
-            return { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } };
-          }),
-        ],
-      });
-    }
-    const response = await fetch(`${provider.baseUrl}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': provider.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-        ...provider.headers,
-      },
-      body: JSON.stringify({
-        model: provider.model,
-        max_tokens: 4096,
-        system: 'You are a helpful coding assistant. Format code with ```language blocks.',
-        messages: apiMessages,
-      }),
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`${response.status}: ${err}`);
-    }
-    const data = await response.json();
-    return data.content?.[0]?.text || 'No response.';
-  };
-
-  const callGemini = async (provider: AIProvider, msgs: Message[], imgs: string[], userInput: string) => {
-    const contents: any[] = [];
-    for (const msg of msgs) {
-      if (msg.role === 'system') continue;
-      const role = msg.role === 'assistant' ? 'model' : 'user';
-      const parts: any[] = [{ text: msg.content }];
-      if (msg.images && msg.images.length > 0) {
-        for (const img of msg.images) {
-          const base64 = img.split(',')[1];
-          const mimeType = img.split(';')[0].split(':')[1];
-          parts.push({ inline_data: { mime_type: mimeType, data: base64 } });
-        }
-      }
-      contents.push({ role, parts });
-    }
-    if (imgs.length > 0) {
-      const parts: any[] = [{ text: userInput || 'Describe this image' }];
-      for (const img of imgs) {
-        const base64 = img.split(',')[1];
-        const mimeType = img.split(';')[0].split(':')[1];
-        parts.push({ inline_data: { mime_type: mimeType, data: base64 } });
-      }
-      contents.push({ role: 'user', parts });
-    }
-    const url = `${provider.baseUrl}/models/${provider.model}:generateContent?key=${provider.apiKey}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: { parts: [{ text: 'You are a helpful coding assistant.' }] },
-        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
-      }),
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`${response.status}: ${err}`);
-    }
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
-  };
-
   const sendMessage = async () => {
     if (!input.trim() && images.length === 0) return;
     if (!activeProvider) {
@@ -223,19 +79,149 @@ export default function AIChat() {
     setIsLoading(true);
 
     try {
-      let response: string;
-      switch (activeProvider.format) {
-        case 'anthropic':
-          response = await callAnthropic(activeProvider, messages, currentImages, currentInput);
-          break;
-        case 'gemini':
-          response = await callGemini(activeProvider, messages, currentImages, currentInput);
-          break;
-        default:
-          response = await callOpenAICompatible(activeProvider, messages, currentImages, currentInput);
-          break;
+      // Build messages array with tool support
+      const apiMessages: any[] = [];
+      
+      // Add system message with tool instructions
+      const hasUserMessage = messages.some(m => m.role === 'user') || currentInput.trim();
+      if (hasUserMessage) {
+        apiMessages.push({ 
+          role: 'system', 
+          content: `You are a helpful coding assistant with access to GitHub tools. Format code with \`\`\`language blocks.
+
+Available tools:
+- create_repository: Create a new GitHub repository
+- push_files: Push multiple files to a GitHub repository
+- list_repositories: List all your GitHub repositories
+- get_repository_files: Get all files from a repository
+
+When the user asks to push code, create a repo, or manage GitHub, use the appropriate tool.` 
+        });
       }
-      setMessages((prev) => [...prev, { role: 'assistant', content: response }]);
+      
+      // Add conversation history
+      for (const msg of messages) {
+        if (msg.role === 'system') continue;
+        if (msg.role === 'user' && msg.images && msg.images.length > 0) {
+          apiMessages.push({
+            role: 'user',
+            content: [
+              { type: 'text', text: msg.content },
+              ...msg.images.map((img) => ({ type: 'image_url', image_url: { url: img } })),
+            ],
+          });
+        } else {
+          apiMessages.push({ role: msg.role, content: msg.content });
+        }
+      }
+      
+      // Add current message
+      if (currentImages.length > 0) {
+        apiMessages.push({
+          role: 'user',
+          content: [
+            { type: 'text', text: currentInput || 'Describe this image' },
+            ...currentImages.map((img) => ({ type: 'image_url', image_url: { url: img } })),
+          ],
+        });
+      } else if (currentInput.trim()) {
+        apiMessages.push({ role: 'user', content: currentInput });
+      }
+
+      // Call API with tools
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${activeProvider.apiKey}`,
+        ...activeProvider.headers,
+      };
+
+      let response = await fetch(`${activeProvider.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: activeProvider.model,
+          messages: apiMessages,
+          tools: githubTools,
+          tool_choice: 'auto',
+          max_tokens: 4096,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`${response.status}: ${err}`);
+      }
+
+      const data = await response.json();
+      const message = data.choices?.[0]?.message;
+
+      // Check if AI wants to use tools
+      if (message?.tool_calls && message.tool_calls.length > 0) {
+        // Add assistant message with tool calls
+        apiMessages.push(message);
+
+        // Execute each tool call
+        for (const toolCall of message.tool_calls) {
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments);
+          
+          setMessages((prev) => [
+            ...prev,
+            { 
+              role: 'assistant', 
+              content: `🔧 Executing tool: **${toolName}**\n\nArguments: \`\`\`json\n${JSON.stringify(toolArgs, null, 2)}\n\`\`\`` 
+            },
+          ]);
+
+          const result = await executeTool(
+            { name: toolName, arguments: toolArgs },
+            settings.githubToken
+          );
+
+          // Add tool result
+          apiMessages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: result.success ? result.output : `Error: ${result.error}`,
+          });
+
+          setMessages((prev) => [
+            ...prev,
+            { 
+              role: 'assistant', 
+              content: result.success 
+                ? `✅ Tool executed successfully:\n\n${result.output}`
+                : `❌ Tool failed: ${result.error}`
+            },
+          ]);
+        }
+
+        // Get final response from AI
+        response = await fetch(`${activeProvider.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: activeProvider.model,
+            messages: apiMessages,
+            max_tokens: 4096,
+            temperature: 0.7,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.text();
+          throw new Error(`${response.status}: ${err}`);
+        }
+
+        const finalData = await response.json();
+        const finalResponse = finalData.choices?.[0]?.message?.content || 'No response.';
+        setMessages((prev) => [...prev, { role: 'assistant', content: finalResponse }]);
+      } else {
+        // No tool calls, just display the response
+        const responseText = message?.content || 'No response.';
+        setMessages((prev) => [...prev, { role: 'assistant', content: responseText }]);
+      }
     } catch (error: any) {
       setMessages((prev) => [
         ...prev,
