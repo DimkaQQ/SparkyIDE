@@ -9,15 +9,16 @@ interface SettingsModalProps {
 }
 
 const PRESET_TEMPLATES: Omit<AIProvider, 'apiKey'>[] = [
+  { id: '', name: 'Meta Muse (Spark)', baseUrl: 'https://api.meta.ai/v1', model: 'muse-spark-1.3', icon: 'M', color: '#0668E8', format: 'openai' },
+  { id: '', name: 'Meta Muse (Wonder)', baseUrl: 'https://api.meta.ai/v1', model: 'muse-wonder', icon: 'M', color: '#0668E8', format: 'openai' },
   { id: '', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514', icon: 'A', color: '#d97706', format: 'anthropic', headers: { 'anthropic-version': '2023-06-01' } },
   { id: '', name: 'OpenAI (GPT-4o)', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o', icon: 'O', color: '#10b981', format: 'openai' },
   { id: '', name: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', icon: 'G', color: '#3b82f6', format: 'gemini' },
-  { id: '', name: 'Meta Llama (Together)', baseUrl: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct', icon: 'L', color: '#8b5cf6', format: 'openai' },
   { id: '', name: 'OpenRouter (Any)', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-sonnet-4-20250514', icon: 'R', color: '#06b6d4', format: 'openai', headers: { 'HTTP-Referer': window.location.origin, 'X-Title': 'MetaCode IDE' } },
   { id: '', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', icon: 'D', color: '#0ea5e9', format: 'openai' },
   { id: '', name: 'Mistral AI', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', icon: 'M', color: '#f97316', format: 'openai' },
   { id: '', name: 'Groq (Fast)', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', icon: 'Q', color: '#f59e0b', format: 'openai' },
-  { id: '', name: 'Custom / Self-hosted', baseUrl: 'http://localhost:11434/v1', model: 'llama3', icon: 'C', color: '#6b7280', format: 'openai' },
+  { id: '', name: 'Custom / Self-hosted', baseUrl: 'http://localhost:11434/v1', model: 'custom-model', icon: 'C', color: '#6b7280', format: 'openai' },
 ];
 
 export default function SettingsModal({ settings, setSettings, onClose }: SettingsModalProps) {
