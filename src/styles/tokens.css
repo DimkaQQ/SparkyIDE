@@ -1,0 +1,112 @@
+/* ==========================================================================
+   Design Tokens — VS Code inspired dark theme
+   ========================================================================== */
+
+:root {
+  /* ---- Backgrounds ---- */
+  --bg: #1e1e1e;
+  --panel: #252526;
+  --surface: #2d2d2d;
+  --surface-hover: #37373d;
+  --surface-active: #414146;
+  --elevated: #1f1f1f;
+
+  /* ---- Borders ---- */
+  --border: #3c3c3c;
+  --border-strong: #505050;
+  --border-focus: #007acc;
+
+  /* ---- Text ---- */
+  --text: #d4d4d4;
+  --text-strong: #ffffff;
+  --muted: #858585;
+  --muted-strong: #a0a0a0;
+
+  /* ---- Accent ---- */
+  --accent: #007acc;
+  --accent-hover: #1a8ad4;
+  --accent-active: #006bb3;
+  --accent-muted: rgba(0, 122, 204, 0.15);
+
+  /* ---- Semantic ---- */
+  --success: #4ec9b0;
+  --warning: #cca700;
+  --error: #f48771;
+  --info: #3794ff;
+
+  /* ---- Syntax (Monokai-ish) ---- */
+  --syn-keyword: #569cd6;
+  --syn-string: #ce9178;
+  --syn-number: #b5cea8;
+  --syn-comment: #6a9955;
+  --syn-fn: #dcdcaa;
+  --syn-type: #4ec9b0;
+
+  /* ---- Spacing (4px grid) ---- */
+  --gap: 8px;
+  --gap-sm: 4px;
+  --gap-md: 12px;
+  --gap-lg: 16px;
+  --gap-xl: 24px;
+
+  /* ---- Sizes ---- */
+  --control-h: 32px;
+  --control-h-lg: 36px;
+  --sidebar-w: 48px;
+  --tab-h: 36px;
+  --topbar-h: 40px;
+
+  /* ---- Radii ---- */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 8px;
+
+  /* ---- Shadows ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-focus: 0 0 0 2px var(--accent);
+
+  /* ---- Transitions ---- */
+  --transition: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---- Fonts ---- */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+
+  /* ---- Font sizes ---- */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+}
+
+/* Light theme override */
+[data-theme='light'] {
+  --bg: #ffffff;
+  --panel: #f3f3f3;
+  --surface: #e8e8e8;
+  --surface-hover: #dedede;
+  --surface-active: #d4d4d4;
+  --elevated: #ffffff;
+
+  --border: #e0e0e0;
+  --border-strong: #c8c8c8;
+  --border-focus: #007acc;
+
+  --text: #1e1e1e;
+  --text-strong: #000000;
+  --muted: #6e6e6e;
+  --muted-strong: #4a4a4a;
+
+  --accent: #007acc;
+  --accent-hover: #006bb3;
+  --accent-active: #005a9e;
+  --accent-muted: rgba(0, 122, 204, 0.1);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+}

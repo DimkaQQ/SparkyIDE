@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Key, ExternalLink, Plus, Trash2, ChevronDown, ChevronUp, Zap, Shield } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { AppSettings, AIProvider } from '../context';
 
 interface SettingsModalProps {
@@ -9,15 +9,15 @@ interface SettingsModalProps {
 }
 
 const PRESET_TEMPLATES: Omit<AIProvider, 'apiKey'>[] = [
-  { id: '', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514', icon: '🟠', color: '#d97706', format: 'anthropic', headers: { 'anthropic-version': '2023-06-01' } },
-  { id: '', name: 'OpenAI (GPT-4o)', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o', icon: '🟢', color: '#10b981', format: 'openai' },
-  { id: '', name: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', icon: '🔵', color: '#3b82f6', format: 'gemini' },
-  { id: '', name: 'Meta Llama (Together)', baseUrl: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct', icon: '🟣', color: '#8b5cf6', format: 'openai' },
-  { id: '', name: 'OpenRouter (Any)', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-sonnet-4-20250514', icon: '🌐', color: '#06b6d4', format: 'openai', headers: { 'HTTP-Referer': window.location.origin, 'X-Title': 'MetaCode IDE' } },
-  { id: '', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', icon: '🐋', color: '#0ea5e9', format: 'openai' },
-  { id: '', name: 'Mistral AI', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', icon: '🌊', color: '#f97316', format: 'openai' },
-  { id: '', name: 'Groq (Fast)', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', icon: '⚡', color: '#f59e0b', format: 'openai' },
-  { id: '', name: 'Custom / Self-hosted', baseUrl: 'http://localhost:11434/v1', model: 'llama3', icon: '🔧', color: '#6b7280', format: 'openai' },
+  { id: '', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514', icon: 'A', color: '#d97706', format: 'anthropic', headers: { 'anthropic-version': '2023-06-01' } },
+  { id: '', name: 'OpenAI (GPT-4o)', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o', icon: 'O', color: '#10b981', format: 'openai' },
+  { id: '', name: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', icon: 'G', color: '#3b82f6', format: 'gemini' },
+  { id: '', name: 'Meta Llama (Together)', baseUrl: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct', icon: 'L', color: '#8b5cf6', format: 'openai' },
+  { id: '', name: 'OpenRouter (Any)', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-sonnet-4-20250514', icon: 'R', color: '#06b6d4', format: 'openai', headers: { 'HTTP-Referer': window.location.origin, 'X-Title': 'MetaCode IDE' } },
+  { id: '', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', icon: 'D', color: '#0ea5e9', format: 'openai' },
+  { id: '', name: 'Mistral AI', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', icon: 'M', color: '#f97316', format: 'openai' },
+  { id: '', name: 'Groq (Fast)', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', icon: 'Q', color: '#f59e0b', format: 'openai' },
+  { id: '', name: 'Custom / Self-hosted', baseUrl: 'http://localhost:11434/v1', model: 'llama3', icon: 'C', color: '#6b7280', format: 'openai' },
 ];
 
 export default function SettingsModal({ settings, setSettings, onClose }: SettingsModalProps) {
@@ -60,65 +60,65 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0, 0, 0, 0.5)' }}>
       <div
-        className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden shadow-glow-strong"
+        className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-lg overflow-hidden animate-fade-in"
         style={{
-          background: 'var(--bg-glass)',
-          border: '1px solid var(--border-secondary)',
-          backdropFilter: 'blur(30px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+          background: 'var(--panel)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg)',
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-7 border-b" style={{ borderColor: 'var(--border-primary)' }}>
-          <div className="flex items-center gap-4">
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center gradient-bg shadow-glow"
-            >
-              <Zap size={22} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                Настройки
-              </h2>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                Управляй AI-провайдерами и подключениями
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110"
-            style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)', border: '1px solid var(--border-primary)' }}
-          >
-            <X size={18} />
+        <div
+          className="flex items-center justify-between px-4"
+          style={{
+            height: 'var(--topbar-h)',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <span className="font-semibold" style={{ color: 'var(--text-strong)', fontSize: 'var(--text-sm)' }}>
+            Settings
+          </span>
+          <button onClick={onClose} className="btn-icon">
+            <X size={16} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-7 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {/* Provider List */}
           {localSettings.providers.map((provider) => (
             <div
               key={provider.id}
-              className="rounded-2xl overflow-hidden transition-all duration-300"
+              className="rounded"
               style={{
-                background: 'var(--bg-tertiary)',
-                border: `1px solid ${provider.apiKey ? 'var(--border-secondary)' : 'var(--border-primary)'}`,
-                opacity: provider.apiKey ? 1 : 0.75,
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                opacity: provider.apiKey ? 1 : 0.7,
               }}
             >
               {/* Provider Header */}
               <div
-                className="flex items-center gap-4 p-5 cursor-pointer transition-all duration-200"
+                className="flex items-center gap-3 p-3 cursor-pointer transition-colors"
                 onClick={() => setExpandedProvider(expandedProvider === provider.id ? null : provider.id)}
-                style={{ background: expandedProvider === provider.id ? 'var(--bg-hover)' : 'transparent' }}
+                style={{ background: expandedProvider === provider.id ? 'var(--surface-hover)' : 'transparent' }}
               >
-                <span className="text-3xl">{provider.icon}</span>
+                <div
+                  className="flex items-center justify-center font-bold text-white flex-shrink-0"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 'var(--radius)',
+                    background: provider.color,
+                    fontSize: 'var(--text-xs)',
+                  }}
+                >
+                  {provider.icon}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                       {provider.name}
                     </p>
                     <span
@@ -126,34 +126,33 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
                       style={{
                         background: `${provider.color}20`,
                         color: provider.color,
-                        border: `1px solid ${provider.color}30`,
+                        border: `1px solid ${provider.color}40`,
+                        fontSize: 'var(--text-xs)',
                       }}
                     >
                       {provider.format}
                     </span>
                   </div>
-                  <p className="text-xs mt-1 font-medium" style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>
                     {provider.model}
                   </p>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div
-                    className="w-3 h-3 rounded-full shadow-glow"
-                    style={{ background: provider.apiKey ? 'var(--success)' : 'var(--error)' }}
-                  />
-                  {expandedProvider === provider.id ? (
-                    <ChevronUp size={18} style={{ color: 'var(--text-muted)' }} />
-                  ) : (
-                    <ChevronDown size={18} style={{ color: 'var(--text-muted)' }} />
-                  )}
-                </div>
+                <div
+                  className="status-dot flex-shrink-0"
+                  style={{ background: provider.apiKey ? 'var(--success)' : 'var(--error)' }}
+                />
+                {expandedProvider === provider.id ? (
+                  <ChevronUp size={14} style={{ color: 'var(--muted)' }} />
+                ) : (
+                  <ChevronDown size={14} style={{ color: 'var(--muted)' }} />
+                )}
               </div>
 
               {/* Expanded Settings */}
               {expandedProvider === provider.id && (
-                <div className="p-5 pt-0 space-y-5 border-t animate-fade-in" style={{ borderColor: 'var(--border-primary)' }}>
-                  <div className="pt-5">
-                    <label className="block text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-muted)' }}>
+                <div className="p-3 pt-0 space-y-3 border-t animate-fade-in" style={{ borderColor: 'var(--border)' }}>
+                  <div className="pt-3">
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
                       API Key
                     </label>
                     <input
@@ -161,48 +160,47 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
                       value={provider.apiKey}
                       onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })}
                       placeholder="Enter API key..."
-                      className="input-field"
+                      className="input"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-muted)' }}>
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
                         Model
                       </label>
                       <input
                         type="text"
                         value={provider.model}
                         onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
-                        className="input-field"
+                        className="input"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-muted)' }}>
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
                         Base URL
                       </label>
                       <input
                         type="text"
                         value={provider.baseUrl}
                         onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })}
-                        className="input-field"
+                        className="input"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between pt-3">
+                  <div className="flex items-center justify-between">
                     <button
                       onClick={() => setLocalSettings((prev) => ({ ...prev, activeProviderId: provider.id }))}
-                      className={`text-sm px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 ${
-                        localSettings.activeProviderId === provider.id ? 'btn-primary' : 'btn-secondary'
-                      }`}
+                      className={localSettings.activeProviderId === provider.id ? 'btn-primary' : 'btn'}
                     >
-                      {localSettings.activeProviderId === provider.id ? '✓ Active' : 'Set Active'}
+                      {localSettings.activeProviderId === provider.id ? 'Active' : 'Set Active'}
                     </button>
                     <button
                       onClick={() => removeProvider(provider.id)}
-                      className="text-sm flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
-                      style={{ color: 'var(--error)', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                      className="btn"
+                      style={{ color: 'var(--error)', borderColor: 'var(--error)' }}
                     >
-                      <Trash2 size={14} /> Remove
+                      <Trash2 size={14} />
+                      <span>Remove</span>
                     </button>
                   </div>
                 </div>
@@ -213,57 +211,68 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
           {/* Add Provider */}
           {showAddProvider ? (
             <div
-              className="rounded-2xl p-6 space-y-5 animate-scale-in shadow-glow"
+              className="rounded p-4 space-y-3 animate-fade-in"
               style={{
-                background: 'var(--bg-tertiary)',
-                border: '1px solid var(--border-accent)',
+                background: 'var(--surface)',
+                border: '1px solid var(--accent)',
               }}
             >
-              <h3 className="text-base font-bold flex items-center gap-2.5" style={{ color: 'var(--text-accent)' }}>
-                <Plus size={18} /> Add New Provider
+              <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--accent)' }}>
+                <Plus size={14} /> Add New Provider
               </h3>
 
               {/* Template Selector */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
+                <label className="block text-xs font-medium mb-2" style={{ color: 'var(--muted)' }}>
                   Quick Template
                 </label>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   {PRESET_TEMPLATES.map((template, i) => (
                     <button
                       key={i}
                       onClick={() => setNewProvider(template)}
-                      className={`flex items-center gap-3 p-4 rounded-xl text-left text-sm transition-all duration-300 hover:scale-[1.02] ${
-                        newProvider.name === template.name ? 'btn-primary' : 'btn-secondary'
+                      className={`flex items-center gap-2 p-2 rounded text-left text-xs transition-colors ${
+                        newProvider.name === template.name ? 'btn-primary' : 'btn'
                       }`}
                     >
-                      <span className="text-xl">{template.icon}</span>
-                      <span className="truncate font-semibold">{template.name}</span>
+                      <div
+                        className="flex items-center justify-center font-bold text-white flex-shrink-0"
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 'var(--radius-sm)',
+                          background: template.color,
+                          fontSize: 'var(--text-xs)',
+                        }}
+                      >
+                        {template.icon}
+                      </div>
+                      <span className="truncate font-medium">{template.name}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-muted)' }}>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
                     Name
                   </label>
                   <input
                     type="text"
                     value={newProvider.name}
                     onChange={(e) => setNewProvider({ ...newProvider, name: e.target.value })}
-                    className="input-field"
+                    className="input"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-muted)' }}>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
                     Format
                   </label>
                   <select
                     value={newProvider.format}
                     onChange={(e) => setNewProvider({ ...newProvider, format: e.target.value as any })}
-                    className="input-field"
+                    className="input"
                   >
                     <option value="openai">OpenAI Compatible</option>
                     <option value="anthropic">Anthropic (Claude)</option>
@@ -272,29 +281,29 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-muted)' }}>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
                   Base URL
                 </label>
                 <input
                   type="text"
                   value={newProvider.baseUrl}
                   onChange={(e) => setNewProvider({ ...newProvider, baseUrl: e.target.value })}
-                  className="input-field"
+                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-muted)' }}>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
                   Model
                 </label>
                 <input
                   type="text"
                   value={newProvider.model}
                   onChange={(e) => setNewProvider({ ...newProvider, model: e.target.value })}
-                  className="input-field"
+                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-muted)' }}>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--muted)' }}>
                   API Key
                 </label>
                 <input
@@ -302,11 +311,11 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
                   value={newApiKey}
                   onChange={(e) => setNewApiKey(e.target.value)}
                   placeholder="Enter API key..."
-                  className="input-field"
+                  className="input"
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-3">
-                <button onClick={() => setShowAddProvider(false)} className="btn-secondary">
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setShowAddProvider(false)} className="btn">
                   Cancel
                 </button>
                 <button onClick={addProvider} className="btn-primary">
@@ -317,31 +326,28 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
           ) : (
             <button
               onClick={() => setShowAddProvider(true)}
-              className="w-full border-2 border-dashed rounded-2xl p-6 transition-all duration-300 hover:scale-[1.01] flex items-center justify-center gap-3 group"
+              className="w-full rounded p-3 flex items-center justify-center gap-2 transition-colors"
               style={{
-                borderColor: 'var(--border-secondary)',
-                color: 'var(--text-muted)',
+                border: '2px dashed var(--border)',
+                color: 'var(--muted)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                e.currentTarget.style.color = 'var(--text-accent)';
-                e.currentTarget.style.boxShadow = 'var(--accent-glow)';
+                e.currentTarget.style.borderColor = 'var(--accent)';
+                e.currentTarget.style.color = 'var(--accent)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-secondary)';
-                e.currentTarget.style.color = 'var(--text-muted)';
-                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.color = 'var(--muted)';
               }}
             >
-              <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" /> 
-              <span className="font-semibold">Add AI Provider</span>
+              <Plus size={16} />
+              <span className="text-sm font-medium">Add AI Provider</span>
             </button>
           )}
 
           {/* GitHub Token */}
-          <div className="border-t pt-6 mt-6" style={{ borderColor: 'var(--border-primary)' }}>
-            <label className="block text-base font-bold mb-3 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
-              <Shield size={18} style={{ color: 'var(--success)' }} />
+          <div className="border-t pt-4 mt-4" style={{ borderColor: 'var(--border)' }}>
+            <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>
               GitHub Token
             </label>
             <input
@@ -349,17 +355,17 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
               value={localSettings.githubToken}
               onChange={(e) => setLocalSettings({ ...localSettings, githubToken: e.target.value })}
               placeholder="ghp_..."
-              className="input-field"
+              className="input"
             />
-            <p className="text-sm mt-3 flex items-center gap-2 font-medium" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--muted)' }}>
               <a
                 href="https://github.com/settings/tokens"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 hover:underline"
-                style={{ color: 'var(--success)' }}
+                className="inline-flex items-center gap-1"
+                style={{ color: 'var(--accent)' }}
               >
-                Create token <ExternalLink size={12} />
+                Create token <ExternalLink size={10} />
               </a>
               <span>(needs repo scope)</span>
             </p>
@@ -367,12 +373,18 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-7 border-t" style={{ borderColor: 'var(--border-primary)' }}>
-          <button onClick={onClose} className="btn-secondary">
+        <div
+          className="flex justify-end gap-2 px-4"
+          style={{
+            height: 'var(--topbar-h)',
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <button onClick={onClose} className="btn">
             Cancel
           </button>
           <button onClick={handleSave} className="btn-primary">
-            Save Settings
+            Save
           </button>
         </div>
       </div>
