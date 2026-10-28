@@ -58,16 +58,9 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       {/* File Tabs */}
-      <div
-        className="flex items-center overflow-x-auto"
-        style={{
-          height: 'var(--tab-h)',
-          background: 'var(--panel)',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
+      <div className="tabs">
         {files.map((file, index) => (
           <div
             key={index}
@@ -141,7 +134,7 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
       )}
 
       {/* Monaco Editor */}
-      <div className="flex-1">
+      <div className="flex-1 min-w-0 min-h-0">
         <Editor
           height="100%"
           language={files[activeFile]?.language || 'javascript'}

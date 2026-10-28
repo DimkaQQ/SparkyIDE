@@ -6,7 +6,7 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   Reset — убираем дефолтный UA-стиль
+   Reset
    ========================================================================== */
 
 *, *::before, *::after {
@@ -35,7 +35,6 @@ body {
   transition: background-color var(--transition), color var(--transition);
 }
 
-/* Reset для интерактивных элементов */
 button, input, select, textarea {
   appearance: none;
   -webkit-appearance: none;
@@ -73,7 +72,7 @@ img, svg {
 }
 
 /* ==========================================================================
-   Scrollbar — тонкий, как в VS Code
+   Scrollbar
    ========================================================================== */
 
 ::-webkit-scrollbar {
@@ -92,6 +91,76 @@ img, svg {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-strong);
+}
+
+/* ==========================================================================
+   App Shell — Safe zones & boundaries
+   ========================================================================== */
+
+.app-shell {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  padding: 12px;
+  gap: 8px;
+  background: var(--bg);
+}
+
+/* ==========================================================================
+   Toolbar
+   ========================================================================== */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 0 var(--gap-md);
+  height: var(--topbar-h);
+  min-height: var(--topbar-h);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--gap);
+}
+
+/* ==========================================================================
+   Sidebar
+   ========================================================================== */
+
+.sidebar {
+  width: var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--gap) 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  gap: var(--gap);
+}
+
+/* ==========================================================================
+   Main Content Area
+   ========================================================================== */
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--gap);
+}
+
+.content-area {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 /* ==========================================================================
@@ -196,7 +265,6 @@ img, svg {
   color: var(--accent);
 }
 
-/* SVG внутри кнопок */
 .btn svg, .btn-primary svg, .btn-icon svg {
   width: 16px;
   height: 16px;
@@ -240,7 +308,6 @@ img, svg {
   cursor: not-allowed;
 }
 
-/* Select */
 select.input {
   padding-right: 32px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23858585' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
@@ -249,31 +316,18 @@ select.input {
 }
 
 /* ==========================================================================
-   Layout primitives
-   ========================================================================== */
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--gap);
-  padding: 0 var(--gap-md);
-  height: var(--topbar-h);
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
-}
-
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-}
-
-.surface {
-  background: var(--surface);
-}
-
-/* ==========================================================================
    Tabs
    ========================================================================== */
+
+.tabs {
+  display: flex;
+  align-items: center;
+  height: var(--tab-h);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
 
 .tab {
   display: inline-flex;
@@ -288,6 +342,8 @@ select.input {
   cursor: pointer;
   transition: all var(--transition);
   position: relative;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .tab:hover {
@@ -306,13 +362,20 @@ select.input {
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 2px;
   background: var(--accent);
 }
 
 .tab svg {
   width: 14px;
   height: 14px;
+  flex-shrink: 0;
+}
+
+.tab span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ==========================================================================
@@ -380,6 +443,56 @@ select.input {
 }
 
 /* ==========================================================================
+   Chat Panel
+   ========================================================================== */
+
+.chat-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--gap-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+  min-height: 0;
+}
+
+.chat-input-area {
+  padding: var(--gap-md);
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.message-bubble {
+  max-width: 70%;
+  padding: var(--gap-md);
+  border-radius: var(--radius);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.message-bubble.user {
+  background: var(--accent);
+  color: #ffffff;
+  align-self: flex-end;
+}
+
+.message-bubble.assistant {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  align-self: flex-start;
+}
+
+/* ==========================================================================
    Prose (AI messages)
    ========================================================================== */
 
@@ -387,6 +500,8 @@ select.input {
   font-size: var(--text-base);
   line-height: 1.6;
   color: var(--text);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .prose p {
@@ -400,6 +515,7 @@ select.input {
   padding: var(--gap-md);
   overflow-x: auto;
   margin: var(--gap-md) 0;
+  max-width: 100%;
 }
 
 .prose code {
@@ -424,6 +540,7 @@ select.input {
 
 .prose a {
   color: var(--accent);
+  word-break: break-all;
 }
 
 .prose ul, .prose ol {
@@ -452,6 +569,9 @@ select.input {
   width: 100%;
   border-collapse: collapse;
   margin: 0.75em 0;
+  max-width: 100%;
+  overflow-x: auto;
+  display: block;
 }
 
 .prose th, .prose td {
@@ -463,6 +583,55 @@ select.input {
 .prose th {
   background: var(--surface);
   font-weight: 600;
+}
+
+/* ==========================================================================
+   Modal
+   ========================================================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gap-xl);
+  z-index: 100;
+}
+
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  max-width: 760px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: var(--gap-md) var(--gap-lg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--gap-lg);
+}
+
+.modal-footer {
+  padding: var(--gap-md) var(--gap-lg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gap);
 }
 
 /* ==========================================================================
@@ -485,35 +654,3 @@ select.input {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-
-/* ==========================================================================
-   Utilities
-   ========================================================================== */
-
-.text-muted { color: var(--muted); }
-.text-strong { color: var(--text-strong); }
-.text-accent { color: var(--accent); }
-.text-success { color: var(--success); }
-.text-error { color: var(--error); }
-
-.bg-panel { background: var(--panel); }
-.bg-surface { background: var(--surface); }
-.bg-bg { background: var(--bg); }
-
-.border-default { border-color: var(--border); }
-.border-strong { border-color: var(--border-strong); }
-
-/* Отступы кратные 4 */
-.p-1 { padding: 4px; }
-.p-2 { padding: 8px; }
-.p-3 { padding: 12px; }
-.p-4 { padding: 16px; }
-.p-5 { padding: 20px; }
-.p-6 { padding: 24px; }
-
-.gap-1 { gap: 4px; }
-.gap-2 { gap: 8px; }
-.gap-3 { gap: 12px; }
-.gap-4 { gap: 16px; }
-.gap-5 { gap: 20px; }
-.gap-6 { gap: 24px; }

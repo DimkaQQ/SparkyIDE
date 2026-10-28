@@ -70,18 +70,12 @@ export default function FileUpload({ uploadedFiles, setUploadedFiles, setFiles }
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       {/* Header */}
-      <div
-        className="toolbar"
-        style={{
-          background: 'var(--panel)',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
+      <div className="toolbar">
         <div className="flex items-center gap-2">
           <Upload size={16} style={{ color: 'var(--text)' }} />
-          <span className="font-semibold" style={{ color: 'var(--text-strong)', fontSize: 'var(--text-sm)' }}>
+          <span className="font-semibold text-sm" style={{ color: 'var(--text-strong)' }}>
             File Upload
           </span>
         </div>

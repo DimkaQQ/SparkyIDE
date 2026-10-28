@@ -134,18 +134,12 @@ export default function GitHubPanel({ files, setFiles }: GitHubPanelProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       {/* Header */}
-      <div
-        className="toolbar"
-        style={{
-          background: 'var(--panel)',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
+      <div className="toolbar">
         <div className="flex items-center gap-2">
           <GitBranch size={16} style={{ color: 'var(--text)' }} />
-          <span className="font-semibold" style={{ color: 'var(--text-strong)', fontSize: 'var(--text-sm)' }}>
+          <span className="font-semibold text-sm" style={{ color: 'var(--text-strong)' }}>
             GitHub
           </span>
           {selectedRepo && (
@@ -169,12 +163,12 @@ export default function GitHubPanel({ files, setFiles }: GitHubPanelProps) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4" style={{ background: 'var(--bg)' }}>
         {!settings.githubToken ? (
-          <div className="flex flex-col items-center justify-center h-full text-center gap-4">
+          <div className="flex flex-col items-center justify-center h-full text-center">
             <AlertCircle size={48} style={{ color: 'var(--warning)' }} />
-            <p className="font-semibold" style={{ color: 'var(--text-strong)' }}>
+            <p className="font-semibold mt-4" style={{ color: 'var(--text-strong)' }}>
               GitHub Token not configured
             </p>
-            <p className="text-sm" style={{ color: 'var(--muted)' }}>
+            <p className="text-sm mt-2" style={{ color: 'var(--muted)' }}>
               Open settings and add your GitHub Personal Access Token
             </p>
           </div>
