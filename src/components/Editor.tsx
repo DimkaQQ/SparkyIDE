@@ -20,9 +20,9 @@ const LANGUAGES = ['javascript', 'typescript', 'python', 'html', 'css', 'json', 
 
 const getFileIcon = (name: string) => {
   const ext = name.split('.').pop()?.toLowerCase();
-  if (['js', 'jsx', 'ts', 'tsx'].includes(ext || '')) return <FileCode size={13} className="text-yellow-400" />;
-  if (ext === 'json') return <FileJson size={13} className="text-green-400" />;
-  return <FileText size={13} className="text-blue-400" />;
+  if (['js', 'jsx', 'ts', 'tsx'].includes(ext || '')) return <FileCode size={14} className="text-yellow-400" />;
+  if (ext === 'json') return <FileJson size={14} className="text-green-400" />;
+  return <FileText size={14} className="text-blue-400" />;
 };
 
 export default function EditorPanel({ files, setFiles, activeFile, setActiveFile }: EditorProps) {
@@ -58,29 +58,30 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden relative">
       {/* File Tabs */}
       <div
-        className="h-10 flex items-center overflow-x-auto border-b"
+        className="h-12 flex items-center overflow-x-auto border-b relative z-10"
         style={{
-          background: 'var(--bg-secondary)',
+          background: 'var(--bg-glass)',
           borderColor: 'var(--border-primary)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         }}
       >
         {files.map((file, index) => (
           <div
             key={index}
             onClick={() => setActiveFile(index)}
-            className="flex items-center gap-2 px-4 h-full cursor-pointer border-r min-w-fit group transition-all duration-150"
+            className="flex items-center gap-2.5 px-5 h-full cursor-pointer border-r min-w-fit group transition-all duration-200 relative"
             style={{
               borderColor: 'var(--border-primary)',
-              background: activeFile === index ? 'var(--bg-primary)' : 'transparent',
-              borderBottom: activeFile === index ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              background: activeFile === index ? 'var(--bg-tertiary)' : 'transparent',
             }}
           >
             {getFileIcon(file.name)}
             <span
-              className="text-xs font-medium"
+              className="text-xs font-semibold"
               style={{
                 color: activeFile === index ? 'var(--text-primary)' : 'var(--text-muted)',
               }}
@@ -93,30 +94,38 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
                   e.stopPropagation();
                   handleCloseFile(index);
                 }}
-                className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all duration-150 rounded p-0.5"
+                className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all duration-200 rounded-md p-1 hover:bg-red-500/10"
                 style={{ color: 'var(--text-muted)' }}
               >
                 <X size={12} />
               </button>
             )}
+            {/* Active indicator */}
+            {activeFile === index && (
+              <div
+                className="absolute bottom-0 left-0 right-0 h-0.5"
+                style={{ background: 'var(--accent-gradient)' }}
+              />
+            )}
           </div>
         ))}
         <button
           onClick={() => setShowNewFile(!showNewFile)}
-          className="px-3 h-full transition-all duration-150 hover:scale-110"
+          className="px-4 h-full transition-all duration-200 hover:scale-110"
           style={{ color: 'var(--text-muted)' }}
         >
-          <Plus size={16} />
+          <Plus size={18} />
         </button>
       </div>
 
       {/* New File Dialog */}
       {showNewFile && (
         <div
-          className="flex items-center gap-3 p-3 border-b animate-fade-in"
+          className="flex items-center gap-4 p-4 border-b animate-fade-in relative z-10"
           style={{
-            background: 'var(--bg-tertiary)',
+            background: 'var(--bg-glass)',
             borderColor: 'var(--border-primary)',
+            backdropFilter: 'blur(20px)',
           }}
         >
           <input
@@ -139,13 +148,12 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
               </option>
             ))}
           </select>
-          <button onClick={handleCreateFile} className="btn-primary text-sm py-2 px-4">
+          <button onClick={handleCreateFile} className="btn-primary text-sm py-2.5 px-5">
             Create
           </button>
           <button
             onClick={() => setShowNewFile(false)}
-            className="text-sm px-3 py-2 rounded-lg"
-            style={{ color: 'var(--text-muted)' }}
+            className="btn-secondary text-sm py-2.5 px-5"
           >
             Cancel
           </button>
@@ -153,7 +161,7 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
       )}
 
       {/* Monaco Editor */}
-      <div className="flex-1">
+      <div className="flex-1 relative">
         <Editor
           height="100%"
           language={files[activeFile]?.language || 'javascript'}
@@ -163,17 +171,21 @@ export default function EditorPanel({ files, setFiles, activeFile, setActiveFile
           options={{
             fontSize: 14,
             fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-            minimap: { enabled: true },
-            padding: { top: 16 },
+            minimap: { enabled: true, scale: 0.01 },
+            padding: { top: 20 },
             scrollBeyondLastLine: false,
             wordWrap: 'on',
             automaticLayout: true,
-            lineHeight: 22,
+            lineHeight: 24,
             letterSpacing: 0.3,
             renderLineHighlight: 'all',
             cursorBlinking: 'smooth',
             smoothScrolling: true,
             bracketPairColorization: { enabled: true },
+            guides: {
+              bracketPairs: true,
+              indentation: true,
+            },
           }}
         />
       </div>

@@ -11,33 +11,35 @@ interface SidebarProps {
 
 export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, theme, toggleTheme }: SidebarProps) {
   const items = [
-    { id: 'editor' as const, icon: Code2, label: 'Editor', gradient: 'from-blue-500 to-cyan-500' },
-    { id: 'chat' as const, icon: MessageSquare, label: 'AI Chat', gradient: 'from-purple-500 to-pink-500' },
-    { id: 'github' as const, icon: GitBranch, label: 'GitHub', gradient: 'from-green-500 to-emerald-500' },
-    { id: 'files' as const, icon: Upload, label: 'Files', gradient: 'from-orange-500 to-amber-500' },
+    { id: 'editor' as const, icon: Code2, label: 'Editor' },
+    { id: 'chat' as const, icon: MessageSquare, label: 'AI Chat' },
+    { id: 'github' as const, icon: GitBranch, label: 'GitHub' },
+    { id: 'files' as const, icon: Upload, label: 'Files' },
   ];
 
   return (
     <div
-      className="w-16 flex flex-col items-center py-5 gap-1 border-r"
+      className="w-20 flex flex-col items-center py-6 border-r relative z-20"
       style={{
-        background: 'var(--bg-secondary)',
+        background: 'var(--bg-glass)',
         borderColor: 'var(--border-primary)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
       }}
     >
       {/* Logo */}
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg mb-4"
-        style={{
-          background: 'var(--accent-gradient)',
-          boxShadow: 'var(--accent-glow)',
-        }}
-      >
-        M
+      <div className="mb-8 relative group">
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl gradient-bg shadow-glow-strong transition-all duration-300 group-hover:scale-110 group-hover:shadow-glow-strong animate-gradient"
+          style={{ backgroundSize: '200% 200%' }}
+        >
+          M
+        </div>
+        <div className="absolute inset-0 rounded-2xl gradient-bg opacity-0 group-hover:opacity-50 blur-xl transition-opacity duration-300" />
       </div>
 
       {/* Navigation */}
-      <div className="flex flex-col gap-1.5 flex-1">
+      <div className="flex flex-col gap-3 flex-1">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = activePanel === item.id;
@@ -45,8 +47,8 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, t
             <button
               key={item.id}
               onClick={() => setActivePanel(item.id)}
-              className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 group relative ${
-                isActive ? 'scale-105' : 'hover:scale-105'
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group relative ${
+                isActive ? 'scale-110' : 'hover:scale-105'
               }`}
               style={{
                 background: isActive ? 'var(--accent-gradient)' : 'transparent',
@@ -55,25 +57,31 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, t
               }}
               title={item.label}
             >
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+              
               {/* Tooltip */}
               <span
-                className="absolute left-14 px-3 py-1.5 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50 translate-x-2 group-hover:translate-x-0"
+                className="absolute left-20 px-4 py-2 rounded-xl text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-50 translate-x-2 group-hover:translate-x-0"
                 style={{
                   background: 'var(--bg-elevated)',
                   color: 'var(--text-primary)',
-                  border: '1px solid var(--border-primary)',
-                  boxShadow: 'var(--shadow-md)',
+                  border: '1px solid var(--border-secondary)',
+                  boxShadow: 'var(--shadow-lg)',
+                  backdropFilter: 'blur(20px)',
                 }}
               >
                 {item.label}
               </span>
+
               {/* Active indicator */}
               {isActive && (
-                <div
-                  className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
-                  style={{ background: 'var(--accent-primary)' }}
-                />
+                <>
+                  <div
+                    className="absolute -left-[2px] top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full"
+                    style={{ background: 'var(--accent-gradient)' }}
+                  />
+                  <div className="absolute inset-0 rounded-2xl gradient-bg opacity-20 blur-xl -z-10" />
+                </>
               )}
             </button>
           );
@@ -81,11 +89,11 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, t
       </div>
 
       {/* Bottom Actions */}
-      <div className="flex flex-col gap-1.5 mt-auto">
+      <div className="flex flex-col gap-3 mt-auto">
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          className="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
+          className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-105 relative group"
           style={{
             background: 'var(--bg-tertiary)',
             color: 'var(--text-muted)',
@@ -93,13 +101,14 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, t
           }}
           title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--bg-hover)' }} />
         </button>
 
         {/* Settings */}
         <button
           onClick={onOpenSettings}
-          className="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105"
+          className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-105 relative group"
           style={{
             background: 'var(--bg-tertiary)',
             color: 'var(--text-muted)',
@@ -107,7 +116,8 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings, t
           }}
           title="Settings"
         >
-          <Settings size={18} />
+          <Settings size={20} />
+          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--bg-hover)' }} />
         </button>
       </div>
     </div>
