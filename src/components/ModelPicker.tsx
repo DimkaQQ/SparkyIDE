@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Loader2, RefreshCw, Search, Settings2 } from 'lucide-react';
+import { Check, ChevronDown, KeyRound, Loader2, RefreshCw, Search, Settings2 } from 'lucide-react';
 import { useStore } from '../state';
 import { discoverModels } from '../providers';
 import type { ProviderConfig } from '../types';
@@ -79,7 +79,14 @@ export default function ModelPicker() {
           className="provider-dot"
           style={{ background: activeProvider?.color ?? 'var(--muted)' }}
         />
-        <span className="model-trigger-name">{activeProvider?.model || 'Select model'}</span>
+        <span className="model-trigger-text">
+          <span className="model-trigger-provider">
+            {activeProvider?.name ?? 'No provider'}
+          </span>
+          <span className="model-trigger-name">
+            {activeProvider?.model || 'Select a model'}
+          </span>
+        </span>
         <ChevronDown size={12} />
       </button>
 
@@ -98,7 +105,17 @@ export default function ModelPicker() {
           <div className="model-list">
             {groups.length === 0 && (
               <div className="model-empty">
-                No models match. Add a key in Settings and press Detect.
+                <p>No models match. Add an API key for a provider, then press Detect.</p>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    setOpen(false);
+                    setSettingsOpen(true);
+                  }}
+                >
+                  <KeyRound size={12} /> Add API key
+                </button>
               </div>
             )}
             {groups.map(({ provider, models }) => (
@@ -106,8 +123,8 @@ export default function ModelPicker() {
                 <div className="model-group-head" onClick={() => setActiveProviderId(provider.id)}>
                   <span className="provider-dot" style={{ background: provider.color }} />
                   <span className="model-group-name">{provider.name}</span>
-                  <span className={`key-badge ${provider.apiKey ? 'ok' : ''}`}>
-                    {provider.apiKey ? 'key' : 'no key'}
+                  <span className={`key-badge ${provider.apiKey ? 'ok' : 'missing'}`}>
+                    {provider.apiKey ? 'key set' : 'no key'}
                   </span>
                 </div>
                 {models.map((model) => {

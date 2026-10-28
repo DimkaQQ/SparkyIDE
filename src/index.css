@@ -1437,10 +1437,10 @@ img {
 .model-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   max-width: 280px;
-  height: 26px;
-  padding: 0 8px;
+  height: 32px;
+  padding: 0 9px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--panel);
@@ -1460,9 +1460,30 @@ img {
   flex: 0 0 auto;
 }
 
+.model-trigger-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.model-trigger-provider {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
 .model-trigger-name {
+  max-width: 220px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1519,8 +1540,8 @@ img {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 7px;
-  font-size: 10.5px;
+  padding: 6px 7px;
+  font-size: 11px;
   color: var(--muted);
   cursor: pointer;
 }
@@ -1546,19 +1567,25 @@ img {
   background: var(--success-soft);
 }
 
+.key-badge.missing {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
 .model-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 6px 8px 6px 20px;
+  padding: 7px 8px 7px 20px;
   border: 0;
   border-radius: 6px;
   background: none;
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12.5px;
   text-align: left;
 }
 
@@ -1592,11 +1619,19 @@ img {
 }
 
 .model-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   padding: 16px 10px;
   font-size: 11.5px;
   color: var(--muted-2);
   text-align: center;
   line-height: 1.5;
+}
+
+.model-empty p {
+  margin: 0;
 }
 
 /* ==========================================================================
@@ -2308,7 +2343,7 @@ img {
 }
 
 .provider-name {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2316,24 +2351,42 @@ img {
 }
 
 .provider-sub {
-  font-size: 10.5px;
-  color: var(--muted-2);
+  font-size: 11px;
+  color: var(--muted);
   font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.key-dot {
-  width: 7px;
-  height: 7px;
+.key-status {
   flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--muted-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
-.key-dot.ok {
-  background: var(--success);
+.key-status.ok {
+  border-color: var(--success-soft);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+/* The API key block is always rendered — it must stay visible on any screen. */
+.provider-key {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
 }
 
 .provider-form {
@@ -2341,7 +2394,7 @@ img {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border-top: 1px solid var(--border);
+  border-top: 1px dashed var(--border);
 }
 
 .provider-actions {
@@ -2364,9 +2417,16 @@ img {
 }
 
 .field label {
-  font-size: 10px;
+  font-size: 10.5px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
   color: var(--muted-2);
 }
 
