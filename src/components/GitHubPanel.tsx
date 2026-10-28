@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppContext } from '../context';
-import { GitBranch, FolderOpen, FileCode, Download, RefreshCw, AlertCircle } from 'lucide-react';
+import { GitBranch, FolderOpen, FileCode, Download, RefreshCw, AlertCircle, ArrowLeft, GitPullRequest } from 'lucide-react';
 import { Octokit } from '@octokit/rest';
 
 interface FileItem {
@@ -109,61 +109,22 @@ export default function GitHubPanel({ files, setFiles }: GitHubPanelProps) {
     try {
       const octokit = getOctokit();
       const [owner, repo] = selectedRepo.split('/');
-
-      // Get the latest commit SHA
       const { data: refData } = await octokit.git.getRef({ owner, repo, ref: 'heads/main' }).catch(() =>
         octokit.git.getRef({ owner, repo, ref: 'heads/master' })
       );
       const latestCommitSha = refData.object.sha;
-
-      // Get tree
       const { data: commitData } = await octokit.git.getCommit({ owner, repo, commit_sha: latestCommitSha });
       const baseTreeSha = commitData.tree.sha;
-
-      // Create blobs for each file
       const treeItems = await Promise.all(
         files.map(async (file) => {
-          const { data: blob } = await octokit.git.createBlob({
-            owner,
-            repo,
-            content: file.content,
-            encoding: 'utf-8',
-          });
-          return {
-            path: file.name,
-            mode: '100644' as const,
-            type: 'blob' as const,
-            sha: blob.sha,
-          };
+          const { data: blob } = await octokit.git.createBlob({ owner, repo, content: file.content, encoding: 'utf-8' });
+          return { path: file.name, mode: '100644' as const, type: 'blob' as const, sha: blob.sha };
         })
       );
-
-      // Create tree
-      const { data: newTree } = await octokit.git.createTree({
-        owner,
-        repo,
-        base_tree: baseTreeSha,
-        tree: treeItems,
-      });
-
-      // Create commit
-      const { data: newCommit } = await octokit.git.createCommit({
-        owner,
-        repo,
-        message: commitMsg,
-        tree: newTree.sha,
-        parents: [latestCommitSha],
-      });
-
-      // Update ref
+      const { data: newTree } = await octokit.git.createTree({ owner, repo, base_tree: baseTreeSha, tree: treeItems });
+      const { data: newCommit } = await octokit.git.createCommit({ owner, repo, message: commitMsg, tree: newTree.sha, parents: [latestCommitSha] });
       const refName = refData.ref.includes('main') ? 'heads/main' : 'heads/master';
-      await octokit.git.updateRef({
-        owner,
-        repo,
-        ref: refName,
-        sha: newCommit.sha,
-      });
-
+      await octokit.git.updateRef({ owner, repo, ref: refName, sha: newCommit.sha });
       setPushMessage('✅ Successfully pushed to GitHub!');
       setCommitMsg('');
     } catch (err: any) {
@@ -176,58 +137,86 @@ export default function GitHubPanel({ files, setFiles }: GitHubPanelProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="h-12 bg-[#181825] border-b border-[#313244] flex items-center px-4 gap-2">
-        <GitBranch size={18} className="text-green-400" />
-        <span className="font-medium text-sm">GitHub</span>
-        {selectedRepo && (
-          <span className="text-xs text-gray-400 ml-2">/ {selectedRepo}</span>
+      <div
+        className="h-14 flex items-center px-5 gap-3 border-b"
+        style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+      >
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>
+          <GitBranch size={16} style={{ color: 'var(--success)' }} />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>GitHub</h2>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {selectedRepo || 'Connect your repositories'}
+          </p>
+        </div>
+        {currentPath && (
+          <button
+            onClick={() => loadRepoContents(selectedRepo, '')}
+            className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all duration-200 hover:scale-105"
+            style={{ background: 'var(--bg-tertiary)', color: 'var(--text-accent)' }}
+          >
+            <ArrowLeft size={12} /> Root
+          </button>
         )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-5" style={{ background: 'var(--bg-primary)' }}>
         {!settings.githubToken ? (
           <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-            <AlertCircle size={48} className="text-yellow-400" />
-            <p className="text-gray-400">GitHub Token не настроен</p>
-            <p className="text-sm text-gray-500">Перейди в настройки и добавь GitHub Personal Access Token</p>
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
+              <AlertCircle size={32} style={{ color: 'var(--warning)' }} />
+            </div>
+            <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+              GitHub Token не настроен
+            </p>
+            <p className="text-sm max-w-sm" style={{ color: 'var(--text-muted)' }}>
+              Перейди в настройки (⚙️) и добавь GitHub Personal Access Token с правами repo
+            </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Load Repos Button */}
             <button
               onClick={loadRepos}
               disabled={loading}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 btn-primary"
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               {loading ? 'Loading...' : 'Load Repositories'}
             </button>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm p-3 rounded-lg">
-                {error}
+              <div className="card" style={{ borderColor: 'var(--error)', background: 'rgba(239, 68, 68, 0.05)' }}>
+                <p className="text-sm" style={{ color: 'var(--error)' }}>{error}</p>
               </div>
             )}
 
             {/* Repos List */}
             {repos.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-gray-300">Your Repositories</h3>
-                <div className="grid gap-2 max-h-[300px] overflow-y-auto">
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  Your Repositories
+                </h3>
+                <div className="grid gap-2 max-h-[400px] overflow-y-auto">
                   {repos.map((repo) => (
                     <button
                       key={repo.full_name}
                       onClick={() => loadRepoContents(repo.full_name)}
-                      className="flex items-center gap-3 bg-[#313244] p-3 rounded-lg hover:bg-[#45475a] transition-colors text-left"
+                      className="card flex items-center gap-3 text-left transition-all duration-200 hover:scale-[1.01]"
                     >
-                      <FolderOpen size={16} className="text-yellow-400 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{repo.name}</p>
-                        <p className="text-xs text-gray-400 truncate">{repo.description || 'No description'}</p>
+                      <FolderOpen size={18} style={{ color: 'var(--warning)' }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                          {repo.name}
+                        </p>
+                        <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                          {repo.description || 'No description'}
+                        </p>
                       </div>
                       {repo.language && (
-                        <span className="text-xs text-gray-500 flex-shrink-0">{repo.language}</span>
+                        <span className="badge badge-info">{repo.language}</span>
                       )}
                     </button>
                   ))}
@@ -237,29 +226,18 @@ export default function GitHubPanel({ files, setFiles }: GitHubPanelProps) {
 
             {/* Repo Files */}
             {repoFiles.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-gray-300">
-                    {currentPath ? `Files in /${currentPath}` : 'Root Files'}
-                  </h3>
-                  {currentPath && (
-                    <button
-                      onClick={() => loadRepoContents(selectedRepo, '')}
-                      className="text-xs text-purple-400 hover:text-purple-300"
-                    >
-                      Back to root
-                    </button>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  {repoFiles.map((file) => (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  {currentPath ? `Files in /${currentPath}` : 'Root Files'}
+                </h3>
+                <div className="card p-0 overflow-hidden">
+                  {repoFiles.map((file, i) => (
                     <div
                       key={file.path}
-                      className={`flex items-center gap-2 p-2 rounded-lg ${
-                        file.type === 'dir'
-                          ? 'cursor-pointer hover:bg-[#313244]'
-                          : 'cursor-pointer hover:bg-[#313244]'
-                      }`}
+                      className="flex items-center gap-3 p-3 cursor-pointer transition-all duration-150"
+                      style={{
+                        borderTop: i > 0 ? '1px solid var(--border-primary)' : 'none',
+                      }}
                       onClick={() => {
                         if (file.type === 'dir') {
                           loadRepoContents(selectedRepo, file.path);
@@ -267,13 +245,15 @@ export default function GitHubPanel({ files, setFiles }: GitHubPanelProps) {
                           loadFileContent(file.path);
                         }
                       }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       {file.type === 'dir' ? (
-                        <FolderOpen size={14} className="text-yellow-400" />
+                        <FolderOpen size={16} style={{ color: 'var(--warning)' }} />
                       ) : (
-                        <FileCode size={14} className="text-blue-400" />
+                        <FileCode size={16} style={{ color: 'var(--info)' }} />
                       )}
-                      <span className="text-sm text-gray-300">{file.name}</span>
+                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{file.name}</span>
                     </div>
                   ))}
                 </div>
@@ -282,27 +262,29 @@ export default function GitHubPanel({ files, setFiles }: GitHubPanelProps) {
 
             {/* Push to GitHub */}
             {selectedRepo && (
-              <div className="border-t border-[#313244] pt-4 mt-4">
-                <h3 className="text-sm font-medium text-gray-300 mb-2">Push Files to Repository</h3>
+              <div className="border-t pt-5" style={{ borderColor: 'var(--border-primary)' }}>
+                <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
+                  Push to Repository
+                </h3>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={commitMsg}
                     onChange={(e) => setCommitMsg(e.target.value)}
                     placeholder="Commit message..."
-                    className="flex-1 bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-green-500 focus:outline-none"
+                    className="input-field flex-1"
                   />
                   <button
                     onClick={pushToGitHub}
                     disabled={loading || !commitMsg.trim()}
-                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 btn-primary"
                   >
                     <Download size={16} />
                     Push
                   </button>
                 </div>
                 {pushMessage && (
-                  <p className={`text-sm mt-2 ${pushMessage.includes('✅') ? 'text-green-400' : 'text-red-400'}`}>
+                  <p className="text-sm mt-3" style={{ color: pushMessage.includes('✅') ? 'var(--success)' : 'var(--error)' }}>
                     {pushMessage}
                   </p>
                 )}

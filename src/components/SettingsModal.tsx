@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Key, ExternalLink, Plus, Trash2, ChevronDown, ChevronUp, Globe, Zap } from 'lucide-react';
+import { X, Key, ExternalLink, Plus, Trash2, ChevronDown, ChevronUp, Zap, Shield } from 'lucide-react';
 import { AppSettings, AIProvider } from '../context';
 
 interface SettingsModalProps {
@@ -17,7 +17,6 @@ const PRESET_TEMPLATES: Omit<AIProvider, 'apiKey'>[] = [
   { id: '', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', icon: '🐋', color: '#0ea5e9', format: 'openai' },
   { id: '', name: 'Mistral AI', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', icon: '🌊', color: '#f97316', format: 'openai' },
   { id: '', name: 'Groq (Fast)', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', icon: '⚡', color: '#f59e0b', format: 'openai' },
-  { id: '', name: 'Cohere', baseUrl: 'https://api.cohere.ai/v1', model: 'command-r-plus', icon: '🔶', color: '#ef4444', format: 'openai' },
   { id: '', name: 'Custom / Self-hosted', baseUrl: 'http://localhost:11434/v1', model: 'llama3', icon: '🔧', color: '#6b7280', format: 'openai' },
 ];
 
@@ -61,20 +60,37 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#1e1e2e] border border-[#313244] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div
+        className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden"
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-primary)',
+          boxShadow: 'var(--shadow-lg)',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#313244]">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Zap size={20} className="text-purple-400" />
-              AI Providers
-            </h2>
-            <p className="text-xs text-gray-500 mt-1">Добавь API ключи для любого AI-сервиса</p>
+        <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: 'var(--border-primary)' }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: 'var(--accent-gradient)' }}
+            >
+              <Zap size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                Настройки
+              </h2>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Управляй AI-провайдерами и подключениями
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-[#313244] flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110"
+            style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
           >
             <X size={16} />
           </button>
@@ -86,87 +102,104 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
           {localSettings.providers.map((provider) => (
             <div
               key={provider.id}
-              className={`border rounded-xl overflow-hidden transition-all ${
-                provider.apiKey ? 'border-[#45475a]' : 'border-[#313244] opacity-70'
-              }`}
+              className="rounded-xl overflow-hidden transition-all duration-200"
+              style={{
+                background: 'var(--bg-tertiary)',
+                border: `1px solid ${provider.apiKey ? 'var(--border-primary)' : 'var(--border-primary)'}`,
+                opacity: provider.apiKey ? 1 : 0.7,
+              }}
             >
               {/* Provider Header */}
               <div
-                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-[#313244]/50 transition-colors"
+                className="flex items-center gap-3 p-4 cursor-pointer transition-all duration-200"
                 onClick={() => setExpandedProvider(expandedProvider === provider.id ? null : provider.id)}
+                style={{ background: expandedProvider === provider.id ? 'var(--bg-hover)' : 'transparent' }}
               >
-                <span className="text-xl">{provider.icon}</span>
+                <span className="text-2xl">{provider.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-white">{provider.name}</p>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {provider.name}
+                    </p>
                     <span
-                      className="text-[10px] px-1.5 py-0.5 rounded font-mono"
-                      style={{ backgroundColor: `${provider.color}20`, color: provider.color }}
+                      className="badge"
+                      style={{
+                        background: `${provider.color}20`,
+                        color: provider.color,
+                      }}
                     >
                       {provider.format}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{provider.model}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {provider.model}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {provider.apiKey ? (
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-400"></span>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ background: provider.apiKey ? 'var(--success)' : 'var(--error)' }}
+                  />
+                  {expandedProvider === provider.id ? (
+                    <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} />
                   ) : (
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                    <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
                   )}
-                  {expandedProvider === provider.id ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                 </div>
               </div>
 
               {/* Expanded Settings */}
               {expandedProvider === provider.id && (
-                <div className="p-3 pt-0 space-y-3 border-t border-[#313244]">
-                  <div className="pt-3">
-                    <label className="block text-xs font-medium text-gray-400 mb-1">API Key</label>
+                <div className="p-4 pt-0 space-y-4 border-t animate-fade-in" style={{ borderColor: 'var(--border-primary)' }}>
+                  <div className="pt-4">
+                    <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                      API Key
+                    </label>
                     <input
                       type="password"
                       value={provider.apiKey}
                       onChange={(e) => updateProvider(provider.id, { apiKey: e.target.value })}
                       placeholder="Enter API key..."
-                      className="w-full bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-purple-500 focus:outline-none"
+                      className="input-field"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-400 mb-1">Model</label>
+                      <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                        Model
+                      </label>
                       <input
                         type="text"
                         value={provider.model}
                         onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
-                        className="w-full bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-purple-500 focus:outline-none"
+                        className="input-field"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-400 mb-1">Base URL</label>
+                      <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                        Base URL
+                      </label>
                       <input
                         type="text"
                         value={provider.baseUrl}
                         onChange={(e) => updateProvider(provider.id, { baseUrl: e.target.value })}
-                        className="w-full bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-purple-500 focus:outline-none"
+                        className="input-field"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pt-2">
                     <button
-                      onClick={() => {
-                        setLocalSettings((prev) => ({ ...prev, activeProviderId: provider.id }));
-                      }}
-                      className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
-                        localSettings.activeProviderId === provider.id
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-[#313244] text-gray-400 hover:text-white'
+                      onClick={() => setLocalSettings((prev) => ({ ...prev, activeProviderId: provider.id }))}
+                      className={`text-xs px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        localSettings.activeProviderId === provider.id ? 'btn-primary' : 'btn-secondary'
                       }`}
                     >
                       {localSettings.activeProviderId === provider.id ? '✓ Active' : 'Set Active'}
                     </button>
                     <button
                       onClick={() => removeProvider(provider.id)}
-                      className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                      className="text-xs flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 hover:scale-105"
+                      style={{ color: 'var(--error)', background: 'rgba(239, 68, 68, 0.1)' }}
                     >
                       <Trash2 size={12} /> Remove
                     </button>
@@ -178,27 +211,34 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
 
           {/* Add Provider */}
           {showAddProvider ? (
-            <div className="border border-purple-500/30 bg-purple-500/5 rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-medium text-purple-300 flex items-center gap-2">
+            <div
+              className="rounded-xl p-5 space-y-4 animate-fade-in"
+              style={{
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--accent-primary)',
+                boxShadow: 'var(--shadow-glow)',
+              }}
+            >
+              <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-accent)' }}>
                 <Plus size={16} /> Add New Provider
               </h3>
 
               {/* Template Selector */}
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Quick Template</label>
+                <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                  Quick Template
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   {PRESET_TEMPLATES.map((template, i) => (
                     <button
                       key={i}
                       onClick={() => setNewProvider(template)}
-                      className={`flex items-center gap-2 p-2 rounded-lg text-left text-xs transition-colors ${
-                        newProvider.name === template.name
-                          ? 'bg-purple-600/20 border border-purple-500/50 text-purple-300'
-                          : 'bg-[#313244] text-gray-300 hover:bg-[#45475a]'
+                      className={`flex items-center gap-2 p-3 rounded-xl text-left text-xs transition-all duration-200 hover:scale-[1.02] ${
+                        newProvider.name === template.name ? 'btn-primary' : 'btn-secondary'
                       }`}
                     >
-                      <span>{template.icon}</span>
-                      <span className="truncate">{template.name}</span>
+                      <span className="text-base">{template.icon}</span>
+                      <span className="truncate font-medium">{template.name}</span>
                     </button>
                   ))}
                 </div>
@@ -206,20 +246,24 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Name</label>
+                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                    Name
+                  </label>
                   <input
                     type="text"
                     value={newProvider.name}
                     onChange={(e) => setNewProvider({ ...newProvider, name: e.target.value })}
-                    className="w-full bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-purple-500 focus:outline-none"
+                    className="input-field"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Format</label>
+                  <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                    Format
+                  </label>
                   <select
                     value={newProvider.format}
                     onChange={(e) => setNewProvider({ ...newProvider, format: e.target.value as any })}
-                    className="w-full bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-purple-500 focus:outline-none"
+                    className="input-field"
                   >
                     <option value="openai">OpenAI Compatible</option>
                     <option value="anthropic">Anthropic (Claude)</option>
@@ -228,44 +272,44 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Base URL</label>
+                <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                  Base URL
+                </label>
                 <input
                   type="text"
                   value={newProvider.baseUrl}
                   onChange={(e) => setNewProvider({ ...newProvider, baseUrl: e.target.value })}
-                  className="w-full bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-purple-500 focus:outline-none"
+                  className="input-field"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Model</label>
+                <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                  Model
+                </label>
                 <input
                   type="text"
                   value={newProvider.model}
                   onChange={(e) => setNewProvider({ ...newProvider, model: e.target.value })}
-                  className="w-full bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-purple-500 focus:outline-none"
+                  className="input-field"
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">API Key</label>
+                <label className="block text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                  API Key
+                </label>
                 <input
                   type="password"
                   value={newApiKey}
                   onChange={(e) => setNewApiKey(e.target.value)}
                   placeholder="Enter API key..."
-                  className="w-full bg-[#313244] text-white text-sm px-3 py-2 rounded-lg border border-[#45475a] focus:border-purple-500 focus:outline-none"
+                  className="input-field"
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowAddProvider(false)}
-                  className="text-sm text-gray-400 hover:text-white px-3 py-1.5"
-                >
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowAddProvider(false)} className="btn-secondary text-sm">
                   Cancel
                 </button>
-                <button
-                  onClick={addProvider}
-                  className="text-sm bg-purple-600 text-white px-4 py-1.5 rounded-lg hover:bg-purple-700"
-                >
+                <button onClick={addProvider} className="btn-primary text-sm">
                   Add Provider
                 </button>
               </div>
@@ -273,53 +317,58 @@ export default function SettingsModal({ settings, setSettings, onClose }: Settin
           ) : (
             <button
               onClick={() => setShowAddProvider(true)}
-              className="w-full border-2 border-dashed border-[#45475a] rounded-xl p-4 text-gray-400 hover:text-purple-400 hover:border-purple-500/50 transition-colors flex items-center justify-center gap-2"
+              className="w-full border-2 border-dashed rounded-xl p-5 transition-all duration-200 hover:scale-[1.01] flex items-center justify-center gap-2"
+              style={{
+                borderColor: 'var(--border-secondary)',
+                color: 'var(--text-muted)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                e.currentTarget.style.color = 'var(--text-accent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-secondary)';
+                e.currentTarget.style.color = 'var(--text-muted)';
+              }}
             >
               <Plus size={18} /> Add AI Provider
             </button>
           )}
 
           {/* GitHub Token */}
-          <div className="border-t border-[#313244] pt-4 mt-4">
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              <div className="flex items-center gap-2">
-                <Key size={14} className="text-green-400" />
-                GitHub Personal Access Token
-              </div>
+          <div className="border-t pt-5 mt-5" style={{ borderColor: 'var(--border-primary)' }}>
+            <label className="block text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <Shield size={16} style={{ color: 'var(--success)' }} />
+              GitHub Token
             </label>
             <input
               type="password"
               value={localSettings.githubToken}
               onChange={(e) => setLocalSettings({ ...localSettings, githubToken: e.target.value })}
               placeholder="ghp_..."
-              className="w-full bg-[#313244] text-white text-sm px-4 py-2.5 rounded-lg border border-[#45475a] focus:border-green-500 focus:outline-none"
+              className="input-field"
             />
-            <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+            <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
               <a
                 href="https://github.com/settings/tokens"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-green-400 hover:text-green-300 inline-flex items-center gap-0.5"
+                className="inline-flex items-center gap-1 hover:underline"
+                style={{ color: 'var(--success)' }}
               >
                 Create token <ExternalLink size={10} />
               </a>
-              {' '}(needs repo scope)
+              <span>(needs repo scope)</span>
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-[#313244]">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-          >
+        <div className="flex justify-end gap-3 p-6 border-t" style={{ borderColor: 'var(--border-primary)' }}>
+          <button onClick={onClose} className="btn-secondary">
             Cancel
           </button>
-          <button
-            onClick={handleSave}
-            className="px-6 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-          >
+          <button onClick={handleSave} className="btn-primary">
             Save Settings
           </button>
         </div>
