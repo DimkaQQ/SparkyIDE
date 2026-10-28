@@ -18,7 +18,7 @@ function AppContent() {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [files, setFiles] = useState<{ name: string; content: string; language: string }[]>([
-    { name: 'main.js', content: '// ✨ Welcome to MetaCode IDE\n// Your AI-powered development environment\n\nfunction greet(name) {\n  return `Hello, ${name}! 👋`;\n}\n\nconsole.log(greet("Developer"));', language: 'javascript' },
+    { name: 'main.js', content: '// ✨ Добро пожаловать в MetaCode IDE!\n// Твоя AI-среда для разработки\n\nfunction greet(name) {\n  return `Привет, ${name}! 👋`;\n}\n\nconsole.log(greet("Разработчик"));', language: 'javascript' },
   ]);
   const [activeFile, setActiveFile] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; url: string; content?: string }[]>([]);
@@ -30,8 +30,8 @@ function AppContent() {
   return (
     <AppContext.Provider value={{ settings, setSettings }}>
       <div className="h-screen w-screen flex overflow-hidden relative" style={{ background: 'var(--bg-primary)' }}>
-        {/* Decorative Background Elements */}
-        <div className="absolute inset-0 pointer-events-none mesh-gradient opacity-50" />
+        {/* Decorative Background */}
+        <div className="absolute inset-0 pointer-events-none mesh-gradient opacity-60" />
         <div className="glow-orb glow-orb-1" />
         <div className="glow-orb glow-orb-2" />
 
@@ -48,55 +48,57 @@ function AppContent() {
         <div className="flex-1 flex flex-col overflow-hidden relative">
           {/* Top Bar */}
           <div
-            className="h-14 flex items-center px-6 justify-between border-b relative z-10"
+            className="h-16 flex items-center px-8 justify-between border-b relative z-10"
             style={{
               background: 'var(--bg-glass)',
               borderColor: 'var(--border-primary)',
-              backdropFilter: 'blur(20px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              backdropFilter: 'blur(24px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
             }}
           >
-            <div className="flex items-center gap-4">
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm gradient-bg shadow-glow"
-              >
-                M
-              </div>
+            <div className="flex items-center gap-5">
               <div className="flex items-center gap-3">
-                <span className="font-bold text-sm tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  MetaCode
-                </span>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-md" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-accent)' }}>
-                  IDE
-                </span>
+                <div
+                  className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-black text-lg gradient-bg shadow-glow"
+                >
+                  M
+                </div>
+                <div>
+                  <span className="font-black text-base tracking-tight block" style={{ color: 'var(--text-primary)' }}>
+                    MetaCode IDE
+                  </span>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                    AI-Powered Development
+                  </span>
+                </div>
               </div>
-              <div className="h-5 w-px mx-2" style={{ background: 'var(--border-secondary)' }} />
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-primary)' }} />
-                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  {files[activeFile]?.name || 'No file'}
+              <div className="h-8 w-px mx-3" style={{ background: 'var(--border-secondary)' }} />
+              <div className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '2px solid var(--border-primary)' }}>
+                <div className="w-2 h-2 rounded-full" style={{ background: 'var(--accent-primary)' }} />
+                <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                  {files[activeFile]?.name || 'Нет файла'}
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-4">
               {activeProvider && (
-                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
-                  <span className="text-sm">{activeProvider.icon}</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                    {activeProvider.name.split(' ')[0]}
-                  </span>
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: isConnected ? 'var(--success)' : 'var(--error)' }}
-                  />
+                <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '2px solid var(--border-primary)' }}>
+                  <span className="text-lg">{activeProvider.icon}</span>
+                  <div>
+                    <span className="text-sm font-bold block" style={{ color: 'var(--text-primary)' }}>
+                      {activeProvider.name.split(' ')[0]}
+                    </span>
+                    <span className="text-xs font-semibold" style={{ color: isConnected ? 'var(--success)' : 'var(--error)' }}>
+                      {isConnected ? 'Подключено' : 'Нет ключа'}
+                    </span>
+                  </div>
                 </div>
               )}
-              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)' }}>
-                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>GitHub</span>
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ background: ghConnected ? 'var(--success)' : 'var(--error)' }}
-                />
+              <div className="flex items-center gap-3 px-5 py-2.5 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '2px solid var(--border-primary)' }}>
+                <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>GitHub</span>
+                <span className="text-xs font-bold" style={{ color: ghConnected ? 'var(--success)' : 'var(--error)' }}>
+                  {ghConnected ? '✓ Подключено' : '✗ Не подключено'}
+                </span>
               </div>
             </div>
           </div>
