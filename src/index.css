@@ -2282,6 +2282,13 @@ img {
   gap: 10px;
 }
 
+/* Cards keep their natural height and the body scrolls. Without this the
+   cards shrink (their overflow: hidden zeroes the automatic min-height) and
+   collapse into unreadable strips that clip the API key form inside. */
+.settings-body > * {
+  flex: 0 0 auto;
+}
+
 .settings-hint {
   display: flex;
   align-items: flex-start;
@@ -2301,6 +2308,7 @@ img {
 }
 
 .provider-card {
+  flex: 0 0 auto;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--panel-2);
