@@ -2146,6 +2146,77 @@ img {
   flex: 0 0 auto;
 }
 
+/* GitHub device-flow sign-in */
+.device-flow-start {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.device-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+
+.device-flow > .btn {
+  align-self: flex-start;
+}
+
+.device-flow-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.device-flow-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.device-flow-code {
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: 0.16em;
+}
+
+.device-flow-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.settings-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted-2);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.settings-divider::before,
+.settings-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 /* Repositories the connected token can only read. */
 .gh-repo-ro {
   flex: 0 0 auto;

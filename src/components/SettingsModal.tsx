@@ -28,6 +28,7 @@ import {
   getTokenAccess,
   getViewer,
 } from '../github';
+import GitHubDeviceFlow from './GitHubDeviceFlow';
 import { useStore } from '../state';
 import type { ApiFormat, ProviderConfig } from '../types';
 
@@ -150,11 +151,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     if (activeProviderId === id && remaining[0]) setActiveProviderId(remaining[0].id);
   };
 
-  const verifyGitHub = async () => {
-    const token = tokenDraft.trim() || githubToken;
-    if (!token) return;
+  const applyGitHubToken = async (token: string) => {
     setAuthBusy(true);
     setAuthError('');
+    setAuthAccess(null);
     try {
       const user = await getViewer(token);
       setGithubToken(token);
@@ -167,10 +167,15 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       }
     } catch (error) {
       setAuthError(describeGitHubError(error));
-      setAuthAccess(null);
     } finally {
       setAuthBusy(false);
     }
+  };
+
+  const verifyGitHub = async () => {
+    const token = tokenDraft.trim() || githubToken;
+    if (!token) return;
+    await applyGitHubToken(token);
   };
 
   const formatOptions: { value: ApiFormat; label: string }[] = [
@@ -516,6 +521,16 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   <span>No GitHub account connected yet.</span>
                 </div>
               )}
+
+              <GitHubDeviceFlow
+                onToken={(token) => {
+                  void applyGitHubToken(token);
+                }}
+              />
+
+              <div className="settings-divider">
+                <span>or paste a personal access token</span>
+              </div>
 
               <div className="field">
                 <label htmlFor="gh-token">

@@ -33,6 +33,7 @@ import { timeAgo } from '../lib/markdown';
 import { useStore } from '../state';
 import type { GitHubCommitSummary, GitHubRepoSummary, GitHubTreeEntry } from '../types';
 import FileTree from './FileTree';
+import GitHubDeviceFlow from './GitHubDeviceFlow';
 
 type Tab = 'files' | 'commits' | 'actions';
 
@@ -114,9 +115,7 @@ export default function GitHubView() {
     if (githubUser) void loadRepos();
   }, [githubUser, loadRepos]);
 
-  const connect = async () => {
-    const token = tokenDraft.trim();
-    if (!token) return;
+  const applyToken = async (token: string) => {
     setAuthError('');
     setConnecting(true);
     try {
@@ -135,6 +134,12 @@ export default function GitHubView() {
     } finally {
       setConnecting(false);
     }
+  };
+
+  const connect = async () => {
+    const token = tokenDraft.trim();
+    if (!token) return;
+    await applyToken(token);
   };
 
   const openRepo = async (repo: GitHubRepoSummary) => {
@@ -311,6 +316,16 @@ export default function GitHubView() {
             or a fine-grained token with <strong>Contents: Read and write</strong>. The token stays
             in this browser.
           </p>
+          <GitHubDeviceFlow
+            onToken={(token) => {
+              void applyToken(token);
+            }}
+          />
+
+          <div className="settings-divider">
+            <span>or paste a personal access token</span>
+          </div>
+
           <input
             className="input"
             type="password"

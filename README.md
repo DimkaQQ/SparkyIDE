@@ -59,10 +59,25 @@ query parameter, and local runtimes (Ollama/LM Studio/vLLM) are reached over `ht
 
 ## Connecting GitHub
 
-Create a token with `repo` scope at
+Two ways, both in **Settings → GitHub** or in the GitHub panel.
+
+**Sign in with GitHub (OAuth device flow).** No token to copy: Sparky asks GitHub for a short
+code, you approve it at [github.com/login/device](https://github.com/login/device), and the token
+lands in this browser. It needs three things:
+
+1. An OAuth App with **Enable Device Flow** ticked (https://github.com/settings/developers).
+   Its client id goes in `GITHUB_CLIENT_ID` in `src/github-oauth.ts`, or in `VITE_GITHUB_CLIENT_ID`.
+2. No redirect URL: the device flow never redirects. (If you ever switch to the redirect flow,
+   the callback for local development would be `http://localhost:3000/`.)
+3. The app must be served by Vite — `npm run dev` or `npm run preview` — because `vite.config.js`
+   proxies `/github-oauth` to github.com. GitHub's OAuth endpoints send no CORS headers, so a
+   plain static build needs an equivalent proxy.
+
+**Personal access token.** Create one with the `repo` scope at
 [github.com/settings/tokens](https://github.com/settings/tokens/new?scopes=repo&description=Sparky%20IDE)
-and paste it in **Settings → GitHub** or in the GitHub panel. The token is verified against
-`/user` and stored only in this browser.
+(fine-grained tokens need Contents: Read and write), then paste it in **Settings → GitHub**. Either
+way the token is verified against `/user`, its scopes are reported back, and it is stored only in
+this browser.
 
 ## Architecture
 
