@@ -25,9 +25,84 @@ function decodeBase64Utf8(base64: string): string {
 
 export function describeGitHubError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
+  const status = (error as { status?: number } | null)?.status;
   if (/bad credentials/i.test(message)) return 'GitHub rejected the token (bad credentials).';
   if (/rate limit/i.test(message)) return 'GitHub API rate limit reached. Try again later.';
+  if (/resource not accessible by personal access token|resource not accessible by integration/i.test(message)) {
+    return 'This token cannot write to that repository. A fine-grained token needs Repository access plus Contents: Read and write (and Pull requests: Read and write to open PRs); a classic token needs the "repo" scope. Create a new token and reconnect in Settings → GitHub.';
+  }
+  if (status === 403) {
+    return `${message} — the token is missing a permission for this action. Check Contents / Pull requests access in Settings → GitHub.`;
+  }
+  if (status === 404) {
+    return `${message} — the repository may be private and not included in the token's Repository access.`;
+  }
   return message;
+}
+
+export interface TokenAccess {
+  login: string;
+  /** Classic OAuth scopes; null for fine-grained tokens, which have none. */
+  scopes: string[] | null;
+  classic: boolean;
+  /** Whether the classic token carries a scope that allows writing. */
+  classicCanWrite: boolean;
+  repo?: string;
+  /** Repository permission reported by GitHub when a repo was checked. */
+  canPush?: boolean;
+  isPrivate?: boolean;
+}
+
+/** Inspects the token's scopes and, when a repo is given, its push permission. */
+export async function getTokenAccess(token: string, repo?: string): Promise<TokenAccess> {
+  const gh = client(token);
+  const viewer = await gh.users.getAuthenticated();
+  const raw = String(
+    (viewer.headers as Record<string, string | undefined>)['x-oauth-scopes'] ?? '',
+  ).trim();
+  const scopes = raw ? raw.split(',').map((scope) => scope.trim()).filter(Boolean) : null;
+  const access: TokenAccess = {
+    login: viewer.data.login,
+    scopes,
+    classic: scopes !== null,
+    classicCanWrite: scopes ? scopes.includes('repo') || scopes.includes('public_repo') : false,
+  };
+
+  if (repo) {
+    const { owner, name } = splitRepo(repo);
+    const { data } = await gh.repos.get({ owner, repo: name });
+    access.repo = data.full_name;
+    access.canPush = Boolean(data.permissions?.push);
+    access.isPrivate = data.private;
+  }
+  return access;
+}
+
+/** Short human summary plus an optional warning about missing write access. */
+export function describeTokenAccess(access: TokenAccess): { summary: string; warning: string } {
+  const scopeText = access.classic
+    ? `classic token, scopes: ${access.scopes && access.scopes.length > 0 ? access.scopes.join(', ') : 'none'}`
+    : 'no OAuth scopes reported (fine-grained token)';
+  const repoText =
+    access.repo && access.canPush === false
+      ? ` · no write access to ${access.repo}`
+      : access.repo
+        ? ` · write access to ${access.repo}`
+        : '';
+  const summary = `Connected as @${access.login} · ${scopeText}${repoText}`;
+
+  let warning = '';
+  if (access.classic && !access.classicCanWrite) {
+    warning =
+      'This classic token has no "repo" scope, so commits and pull requests will fail. Create a new token with the "repo" scope and reconnect.';
+  } else if (!access.classic) {
+    warning =
+      'This token reports no scopes, so it is treated as fine-grained: enable Repository access, Contents: Read and write, and Pull requests: Read and write for the repositories you want Sparky to push to.';
+  }
+  if (access.canPush === false) {
+    warning = `GitHub reports no push permission for ${access.repo}: grant Contents: Read and write on that repository.`;
+  }
+  return { summary, warning };
 }
 
 export async function getViewer(token: string): Promise<GitHubUser> {
@@ -59,6 +134,7 @@ export async function listRepos(token: string, query = ''): Promise<GitHubRepoSu
     stars: repo.stargazers_count ?? 0,
     updatedAt: repo.updated_at ?? '',
     htmlUrl: repo.html_url,
+    canPush: repo.permissions?.push,
   }));
   const needle = query.trim().toLowerCase();
   if (!needle) return repos;
@@ -164,6 +240,45 @@ export async function listCommits(
     date: commit.commit.author?.date ?? '',
     htmlUrl: commit.html_url,
   }));
+}
+
+export interface CreatedBranch {
+  branch: string;
+  sha: string;
+  base: string;
+  created: boolean;
+}
+
+/** Creates a branch from `from` (or the default branch) and reports its head. */
+export async function createBranch(
+  token: string,
+  repo: string,
+  branch: string,
+  from?: string,
+): Promise<CreatedBranch> {
+  const gh = client(token);
+  const { owner, name } = splitRepo(repo);
+  const clean = branch.replace(/^refs\/heads\//, '').trim();
+  if (!clean) throw new Error('Branch name is required.');
+
+  const { data: repoInfo } = await gh.repos.get({ owner, repo: name });
+  const base = from?.trim() || repoInfo.default_branch;
+
+  try {
+    const { data } = await gh.git.getRef({ owner, repo: name, ref: `heads/${clean}` });
+    return { branch: clean, sha: data.object.sha, base, created: false };
+  } catch (error) {
+    if ((error as { status?: number }).status !== 404) throw error;
+  }
+
+  const { data: baseRef } = await gh.git.getRef({ owner, repo: name, ref: `heads/${base}` });
+  const { data: created } = await gh.git.createRef({
+    owner,
+    repo: name,
+    ref: `refs/heads/${clean}`,
+    sha: baseRef.object.sha,
+  });
+  return { branch: clean, sha: created.object.sha, base, created: true };
 }
 
 export interface CommitFilesOptions {

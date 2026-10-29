@@ -1,7 +1,11 @@
 import {
   commitFiles,
+  createBranch,
   createPullRequest,
+  describeGitHubError,
+  describeTokenAccess,
   getDefaultBranch,
+  getTokenAccess,
   getTree,
   listBranches,
   listCommits,
@@ -136,6 +140,46 @@ export const TOOLS: ToolSchema[] = [
         },
       },
       ['repo', 'message', 'files'],
+    ),
+  },
+  {
+    name: 'github_check_access',
+    description:
+      'Check what the connected GitHub token is allowed to do. Pass a repo to learn whether commits and PRs are possible there. Use it when a GitHub action failed with a permission error.',
+    parameters: schema({
+      repo: str('Repository in "owner/name" form (optional)'),
+    }),
+  },
+  {
+    name: 'github_create_branch',
+    description:
+      'Create a branch on a GitHub repository from another branch (or the default branch). Safe to call when the branch already exists: it then reports the existing head.',
+    parameters: schema(
+      {
+        repo: str('Repository in "owner/name" form'),
+        branch: str('New branch name, e.g. "sparky/fix-settings"'),
+        from: str('Source branch or commit SHA (defaults to the repository default branch)'),
+      },
+      ['repo', 'branch'],
+    ),
+  },
+  {
+    name: 'github_push_workspace',
+    description:
+      'Push the current workspace to GitHub in one call: commits the files as they are right now. Give a branch to create it when missing; without a branch it commits to the default branch. This is the normal way to publish the edits you just made.',
+    parameters: schema(
+      {
+        repo: str('Repository in "owner/name" form'),
+        message: str('Commit message'),
+        branch: str('Target branch (created from `base` when it does not exist)'),
+        base: str('Branch to start from when creating `branch` (defaults to the repository default branch)'),
+        paths: {
+          type: 'array',
+          description: 'Only push these workspace paths (defaults to the whole workspace)',
+          items: { type: 'string', description: 'Workspace-relative file path' },
+        },
+      },
+      ['repo', 'message'],
     ),
   },
   {
@@ -445,6 +489,78 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         };
       }
 
+      case 'github_check_access': {
+        const token = requireGitHub(ctx);
+        const repo = typeof args.repo === 'string' && args.repo ? args.repo : undefined;
+        const access = await getTokenAccess(token, repo);
+        const { summary, warning } = describeTokenAccess(access);
+        return {
+          ok: true,
+          content: [summary, warning].filter((line) => line !== '').join('\n\n'),
+          title: warning ? 'Limited access' : 'Write access ok',
+          meta: {
+            login: access.login,
+            classic: access.classic,
+            canPush: access.canPush === undefined ? 'unknown' : access.canPush,
+          },
+        };
+      }
+
+      case 'github_create_branch': {
+        const token = requireGitHub(ctx);
+        const repo = argString(args, 'repo');
+        const branch = argString(args, 'branch');
+        const from = typeof args.from === 'string' && args.from ? args.from : undefined;
+        const result = await createBranch(token, repo, branch, from);
+        return {
+          ok: true,
+          content: result.created
+            ? `Created branch ${result.branch} on ${repo} from ${result.base} (${result.sha.slice(0, 7)}).`
+            : `Branch ${result.branch} already existed on ${repo} at ${result.sha.slice(0, 7)}.`,
+          title: result.created ? `Created ${result.branch}` : `${result.branch} exists`,
+          meta: { repo, branch: result.branch, base: result.base, created: result.created },
+        };
+      }
+
+      case 'github_push_workspace': {
+        const token = requireGitHub(ctx);
+        const repo = argString(args, 'repo');
+        const message = argString(args, 'message');
+        const branch = typeof args.branch === 'string' && args.branch ? args.branch : undefined;
+        const base = typeof args.base === 'string' && args.base ? args.base : undefined;
+        const wanted = Array.isArray(args.paths) ? args.paths.map((path) => safePath(path)) : null;
+        const files = ctx.workspace.read();
+        const entries = Object.entries(files)
+          .filter(([path]) => !wanted || wanted.includes(path))
+          .sort(([a], [b]) => a.localeCompare(b));
+        if (entries.length === 0) {
+          throw new Error(
+            wanted
+              ? `None of the requested paths exist in the workspace: ${wanted.join(', ')}.`
+              : 'The workspace is empty — there is nothing to push.',
+          );
+        }
+        const result = await commitFiles(token, {
+          repo,
+          branch: branch ?? '',
+          baseBranch: base,
+          message,
+          files: entries.map(([path, content]) => ({ path, content })),
+          createBranch: Boolean(branch),
+        });
+        return {
+          ok: true,
+          content: `Pushed ${entries.length} file(s) from the workspace to ${repo}@${result.branch}.\nCommit: ${result.url}`,
+          title: `Pushed ${entries.length} files to ${result.branch}`,
+          meta: {
+            repo,
+            branch: result.branch,
+            files: entries.length,
+            sha: result.commitSha,
+          },
+        };
+      }
+
       case 'github_create_pr': {
         const token = requireGitHub(ctx);
         const repo = argString(args, 'repo');
@@ -471,7 +587,10 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         return errorResult(new Error(`Unknown tool "${call.name}".`));
     }
   } catch (error) {
-    return errorResult(error);
+    // GitHub API errors need permission guidance, not a raw API message.
+    return errorResult(
+      call.name.startsWith('github_') ? new Error(describeGitHubError(error)) : error,
+    );
   }
 }
 
@@ -490,6 +609,9 @@ export function toolLabel(name: string): string {
     github_list_commits: 'List commits',
     github_list_branches: 'List branches',
     github_commit_files: 'Commit to GitHub',
+    github_check_access: 'Check GitHub access',
+    github_create_branch: 'Create branch',
+    github_push_workspace: 'Push workspace',
     github_create_pr: 'Open pull request',
   };
   return labels[name] ?? name;

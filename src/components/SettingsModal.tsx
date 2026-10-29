@@ -22,7 +22,13 @@ import {
   presetToProvider,
   slug,
 } from '../providers';
-import { describeGitHubError, getViewer } from '../github';
+import {
+  describeGitHubError,
+  describeTokenAccess,
+  getTokenAccess,
+  getViewer,
+} from '../github';
+import GitHubDeviceFlow from './GitHubDeviceFlow';
 import { useStore } from '../state';
 import type { ApiFormat, ProviderConfig } from '../types';
 
@@ -72,6 +78,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   const [tokenDraft, setTokenDraft] = useState('');
   const [authError, setAuthError] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
+  const [authAccess, setAuthAccess] = useState<{ summary: string; warning: string } | null>(null);
 
   const update = (id: string, patch: Partial<ProviderConfig>) => {
     setProviders((prev) =>
@@ -144,21 +151,31 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
     if (activeProviderId === id && remaining[0]) setActiveProviderId(remaining[0].id);
   };
 
-  const verifyGitHub = async () => {
-    const token = tokenDraft.trim() || githubToken;
-    if (!token) return;
+  const applyGitHubToken = async (token: string) => {
     setAuthBusy(true);
     setAuthError('');
+    setAuthAccess(null);
     try {
       const user = await getViewer(token);
       setGithubToken(token);
       setGithubUser(user);
       setTokenDraft('');
+      try {
+        setAuthAccess(describeTokenAccess(await getTokenAccess(token)));
+      } catch {
+        setAuthAccess(null);
+      }
     } catch (error) {
       setAuthError(describeGitHubError(error));
     } finally {
       setAuthBusy(false);
     }
+  };
+
+  const verifyGitHub = async () => {
+    const token = tokenDraft.trim() || githubToken;
+    if (!token) return;
+    await applyGitHubToken(token);
   };
 
   const formatOptions: { value: ApiFormat; label: string }[] = [
@@ -456,7 +473,10 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
               <div className="settings-hint">
                 <p>
                   A personal access token lets Sparky list repositories, read files, push commits
-                  and open pull requests. It is stored only in this browser.
+                  and open pull requests. Push needs write access: a classic token with the{' '}
+                  <code>repo</code> scope, or a fine-grained token with{' '}
+                  <strong>Contents: Read and write</strong> (plus <strong>Pull requests</strong> for
+                  PRs). The token is stored only in this browser.
                 </p>
                 <a
                   className="btn btn-sm"
@@ -464,7 +484,15 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <KeyRound size={12} /> Create token
+                  <KeyRound size={12} /> Classic token
+                </a>
+                <a
+                  className="btn btn-sm"
+                  href="https://github.com/settings/personal-access-tokens/new"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <KeyRound size={12} /> Fine-grained token
                 </a>
               </div>
 
@@ -473,7 +501,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   <img src={githubUser.avatarUrl} alt={githubUser.login} className="gh-avatar" />
                   <div className="gh-account-text">
                     <span className="gh-login">@{githubUser.login}</span>
-                    <span className="muted-small">Connected · repo scope</span>
+                    <span className="muted-small">Connected</span>
                   </div>
                   <button
                     type="button"
@@ -481,6 +509,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                     onClick={() => {
                       setGithubToken('');
                       setGithubUser(null);
+                      setAuthAccess(null);
                     }}
                   >
                     Disconnect
@@ -492,6 +521,16 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   <span>No GitHub account connected yet.</span>
                 </div>
               )}
+
+              <GitHubDeviceFlow
+                onToken={(token) => {
+                  void applyGitHubToken(token);
+                }}
+              />
+
+              <div className="settings-divider">
+                <span>or paste a personal access token</span>
+              </div>
 
               <div className="field">
                 <label htmlFor="gh-token">
@@ -521,6 +560,16 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
                   Verify and save
                 </button>
               </div>
+
+              {authAccess && !authError && (
+                <div className={authAccess.warning ? 'notice error' : 'notice'}>
+                  {authAccess.warning ? <AlertTriangle size={13} /> : <Check size={13} />}
+                  <span>
+                    {authAccess.summary}
+                    {authAccess.warning ? ` — ${authAccess.warning}` : ''}
+                  </span>
+                </div>
+              )}
 
               {authError && (
                 <div className="notice error">

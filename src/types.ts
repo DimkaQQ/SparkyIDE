@@ -19,11 +19,23 @@ export interface ToolCall {
   arguments: string;
 }
 
+export interface DocumentAttachment {
+  name: string;
+  /** 'pdf' keeps per-page markers, 'text' is a plain text file. */
+  kind: 'pdf' | 'text';
+  /** Page count reported by the PDF reader; undefined for text files. */
+  pages?: number;
+  /** Extracted text; empty when the PDF has no text layer (scanned). */
+  text: string;
+  bytes: number;
+}
+
 export interface UserMessage {
   id: string;
   role: 'user';
   content: string;
   images?: string[];
+  documents?: DocumentAttachment[];
   createdAt: number;
 }
 
@@ -96,6 +108,8 @@ export interface GitHubRepoSummary {
   stars: number;
   updatedAt: string;
   htmlUrl: string;
+  /** False when the token can read but not write to the repository. */
+  canPush?: boolean;
 }
 
 export interface GitHubTreeEntry {

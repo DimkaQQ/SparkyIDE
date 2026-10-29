@@ -19,6 +19,7 @@
     "framer-motion": "^11.16.1",
     "lucide-react": "^0.294.0",
     "marked": "^18.1.2",
+    "pdfjs-dist": "^4.10.38",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^20.1.4",

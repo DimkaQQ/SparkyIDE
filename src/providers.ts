@@ -4,6 +4,7 @@ import type {
   ProviderConfig,
   ToolCall,
   ToolSchema,
+  UserMessage,
 } from './types';
 
 /* -------------------------------------------------------------------------- */
@@ -302,16 +303,36 @@ function safeJson(raw: string): unknown {
 /* Message conversion                                                         */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * PDFs travel as plain text so every provider can read them: the text is
+ * wrapped in a <document> block right before the user's own message.
+ */
+function withDocuments(message: UserMessage): string {
+  const documents = message.documents ?? [];
+  const body = message.content || (message.images?.length ? 'Describe the attached image.' : '');
+  if (documents.length === 0) return body;
+  const blocks = documents.map((document) => {
+    const text = document.text.trim();
+    const pages = document.pages ? ` pages="${document.pages}"` : '';
+    return [
+      `<document name="${document.name}"${pages}>`,
+      text || '(no extractable text — this PDF is probably a scan of paper, ask the user for text or a screenshot)',
+      '</document>',
+    ].join('\n');
+  });
+  return [...blocks, body].filter((part) => part.trim() !== '').join('\n\n');
+}
+
 function toOpenAIMessages(system: string, messages: ChatMessage[]) {
   const out: any[] = [{ role: 'system', content: system }];
   for (const message of messages) {
     if (message.role === 'user') {
-      if (message.images && message.images.length > 0) {
+      if ((message.images && message.images.length > 0) || message.documents?.length) {
         out.push({
           role: 'user',
           content: [
-            { type: 'text', text: message.content || 'Describe the attached image.' },
-            ...message.images.map((url) => ({ type: 'image_url', image_url: { url } })),
+            { type: 'text', text: withDocuments(message) },
+            ...(message.images ?? []).map((url) => ({ type: 'image_url', image_url: { url } })),
           ],
         });
       } else {
@@ -365,7 +386,7 @@ function toAnthropicMessages(messages: ChatMessage[]) {
           }
         }
       }
-      blocks.push({ type: 'text', text: message.content || 'Describe the attached image.' });
+      blocks.push({ type: 'text', text: withDocuments(message) });
       push('user', blocks);
     } else if (message.role === 'assistant') {
       const blocks: any[] = [];
@@ -412,7 +433,7 @@ function toGeminiContents(messages: ChatMessage[]) {
         const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(url);
         if (match) parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
       }
-      parts.push({ text: message.content || 'Describe the attached image.' });
+      parts.push({ text: withDocuments(message) });
       push('user', parts);
     } else if (message.role === 'assistant') {
       const parts: any[] = [];

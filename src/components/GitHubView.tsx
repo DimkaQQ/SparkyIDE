@@ -19,6 +19,8 @@ import {
   commitFiles,
   createPullRequest,
   describeGitHubError,
+  describeTokenAccess,
+  getTokenAccess,
   getTree,
   getViewer,
   importRepo,
@@ -31,6 +33,7 @@ import { timeAgo } from '../lib/markdown';
 import { useStore } from '../state';
 import type { GitHubCommitSummary, GitHubRepoSummary, GitHubTreeEntry } from '../types';
 import FileTree from './FileTree';
+import GitHubDeviceFlow from './GitHubDeviceFlow';
 
 type Tab = 'files' | 'commits' | 'actions';
 
@@ -52,6 +55,7 @@ export default function GitHubView() {
   const [tokenDraft, setTokenDraft] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [accessWarning, setAccessWarning] = useState('');
 
   const [repos, setRepos] = useState<GitHubRepoSummary[]>([]);
   const [query, setQuery] = useState('');
@@ -111,9 +115,7 @@ export default function GitHubView() {
     if (githubUser) void loadRepos();
   }, [githubUser, loadRepos]);
 
-  const connect = async () => {
-    const token = tokenDraft.trim();
-    if (!token) return;
+  const applyToken = async (token: string) => {
     setAuthError('');
     setConnecting(true);
     try {
@@ -121,11 +123,23 @@ export default function GitHubView() {
       setGithubToken(token);
       setGithubUser(user);
       setTokenDraft('');
+      try {
+        const { warning } = describeTokenAccess(await getTokenAccess(token));
+        if (warning) setStatus({ kind: 'error', text: warning });
+      } catch {
+        /* the connection already succeeded; access details are optional */
+      }
     } catch (err) {
       setAuthError(describeGitHubError(err));
     } finally {
       setConnecting(false);
     }
+  };
+
+  const connect = async () => {
+    const token = tokenDraft.trim();
+    if (!token) return;
+    await applyToken(token);
   };
 
   const openRepo = async (repo: GitHubRepoSummary) => {
@@ -298,8 +312,20 @@ export default function GitHubView() {
           <h1>Connect GitHub</h1>
           <p>
             Add a personal access token so Sparky can read repositories, push commits and open pull
-            requests. The token stays in this browser.
+            requests. Pushing needs write access: a classic token with the <code>repo</code> scope,
+            or a fine-grained token with <strong>Contents: Read and write</strong>. The token stays
+            in this browser.
           </p>
+          <GitHubDeviceFlow
+            onToken={(token) => {
+              void applyToken(token);
+            }}
+          />
+
+          <div className="settings-divider">
+            <span>or paste a personal access token</span>
+          </div>
+
           <input
             className="input"
             type="password"
@@ -330,7 +356,16 @@ export default function GitHubView() {
             target="_blank"
             rel="noreferrer"
           >
-            Create a token with <code>repo</code> scope <ArrowUpRight size={11} />
+            Create a classic token with <code>repo</code> scope <ArrowUpRight size={11} />
+          </a>
+          <a
+            className="gh-link"
+            href="https://github.com/settings/personal-access-tokens/new"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Or create a fine-grained token (Contents: Read and write){' '}
+            <ArrowUpRight size={11} />
           </a>
         </div>
       </div>
@@ -412,6 +447,7 @@ export default function GitHubView() {
                     <Star size={10} /> {repo.stars}
                   </span>
                 )}
+                {repo.canPush === false && <span className="gh-repo-ro">read-only</span>}
               </div>
             </button>
           ))}
@@ -646,11 +682,21 @@ export default function GitHubView() {
                       />
                       Open a pull request when using a new branch
                     </label>
+                    {selected?.canPush === false && (
+                      <div className="notice error">
+                        <AlertTriangle size={13} />
+                        <span>
+                          This token cannot write to {selected.fullName}. Grant it Contents: Read
+                          and write (fine-grained) or the <code>repo</code> scope (classic), then
+                          reconnect.
+                        </span>
+                      </div>
+                    )}
                     <button
                       type="button"
                       className="btn btn-primary"
                       onClick={() => void pushWorkspace()}
-                      disabled={working}
+                      disabled={working || selected?.canPush === false}
                     >
                       {working ? <Loader2 size={13} className="spin" /> : <GitBranch size={13} />}
                       Commit and push
