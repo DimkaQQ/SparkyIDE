@@ -1,14 +1,24 @@
 import { useMemo, useState } from 'react';
-import { FilePlus2, Plus, Search, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FilePlus2, Plus, Search, X } from 'lucide-react';
 import { useStore } from '../state';
 import { formatBytes } from '../lib/markdown';
+import { diffWorkspace, type ChangeStatus } from '../lib/diff';
 import FileTree from './FileTree';
 
 export default function WorkspacePanel() {
-  const { workspace, workspaceVersion, editorPath, openFile, writeFile } = useStore();
+  const {
+    workspace,
+    workspaceVersion,
+    workspaceBaseline,
+    markWorkspaceSaved,
+    editorPath,
+    openFile,
+    writeFile,
+  } = useStore();
   const [filter, setFilter] = useState('');
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [changesOpen, setChangesOpen] = useState(true);
 
   const paths = useMemo(() => {
     void workspaceVersion;
@@ -25,6 +35,20 @@ export default function WorkspacePanel() {
     () => Object.values(workspace).reduce((sum, content) => sum + new Blob([content]).size, 0),
     [workspace],
   );
+
+  const changes = useMemo(() => {
+    void workspaceVersion;
+    return diffWorkspace(workspace, workspaceBaseline);
+  }, [workspace, workspaceBaseline, workspaceVersion]);
+
+  const changeByPath = useMemo(() => {
+    const map = new Map<string, ChangeStatus>();
+    for (const change of changes) map.set(change.path, change.status);
+    return map;
+  }, [changes]);
+
+  const addedLines = changes.reduce((sum, change) => sum + change.added, 0);
+  const removedLines = changes.reduce((sum, change) => sum + change.removed, 0);
 
   const create = () => {
     const name = newName
@@ -88,8 +112,65 @@ export default function WorkspacePanel() {
         />
       </div>
 
+      {changes.length > 0 && (
+        <div className="changes-block">
+          <div className="changes-head">
+            <button
+              type="button"
+              className="changes-toggle"
+              onClick={() => setChangesOpen((open) => !open)}
+            >
+              {changesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              Changed
+              <span className="changes-count">{changes.length}</span>
+              <span className="changes-stat added">+{addedLines}</span>
+              <span className="changes-stat removed">−{removedLines}</span>
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              title="Mark the workspace as saved (clear change marks)"
+              aria-label="Mark workspace as saved"
+              onClick={markWorkspaceSaved}
+            >
+              <Check size={13} />
+            </button>
+          </div>
+          {changesOpen && (
+            <div className="changes-list">
+              {changes.map((change) => (
+                <button
+                  key={change.path}
+                  type="button"
+                  className={`changes-row ${change.status}`}
+                  title={
+                    change.status === 'deleted'
+                      ? `${change.path} was deleted`
+                      : `Open ${change.path}`
+                  }
+                  onClick={() => {
+                    if (change.status !== 'deleted') openFile(change.path);
+                  }}
+                >
+                  <span className="changes-file">{change.path}</span>
+                  <span className="changes-stat added">{change.added > 0 ? `+${change.added}` : ''}</span>
+                  <span className="changes-stat removed">
+                    {change.removed > 0 ? `−${change.removed}` : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="sidebar-scroll">
-        <FileTree paths={filtered} activePath={editorPath} onSelect={openFile} />
+        <FileTree
+          paths={filtered}
+          activePath={editorPath}
+          onSelect={openFile}
+          changeByPath={changeByPath}
+        />
       </div>
 
       <div className="sidebar-foot">

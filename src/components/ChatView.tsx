@@ -4,6 +4,7 @@ import {
   ArrowUp,
   Bot,
   Check,
+  FileDiff,
   FileText,
   ImagePlus,
   KeyRound,
@@ -22,6 +23,7 @@ import {
   readPdf,
   readTextFile,
 } from '../lib/attachments';
+import { diffWorkspace } from '../lib/diff';
 import { useStore, uid } from '../state';
 import type { ChatMessage, DocumentAttachment, ToolMessage } from '../types';
 import Markdown from './Markdown';
@@ -72,6 +74,8 @@ export default function ChatView() {
     contextDocuments,
     pinDocument,
     unpinDocument,
+    workspaceBaseline,
+    setMode,
   } = useStore();
 
   const [input, setInput] = useState('');
@@ -104,9 +108,6 @@ export default function ChatView() {
     }
     return map;
   }, [messages]);
-
-  const workspacePaths = useMemo(() => Object.keys(workspace).sort(), [workspace]);
-  void workspacePaths;
 
   useEffect(() => {
     if (!prefill) return;
@@ -234,6 +235,17 @@ export default function ChatView() {
 
   // Screenshots on the clipboard (Cmd/Ctrl+V) behave like attachments.
   const workspaceFiles = useMemo(() => Object.keys(workspace).sort(), [workspace]);
+  const changedFiles = useMemo(
+    () => diffWorkspace(workspace, workspaceBaseline),
+    [workspace, workspaceBaseline],
+  );
+  const changedLines = useMemo(
+    () => ({
+      added: changedFiles.reduce((sum, change) => sum + change.added, 0),
+      removed: changedFiles.reduce((sum, change) => sum + change.removed, 0),
+    }),
+    [changedFiles],
+  );
   const filteredWorkspaceFiles = useMemo(() => {
     const needle = contextQuery.trim().toLowerCase();
     if (!needle) return workspaceFiles;
@@ -816,7 +828,21 @@ export default function ChatView() {
         </div>
         <div className="composer-hint">
           <span>{activeProvider?.name ?? 'No provider'} · {activeProvider?.model ?? 'no model'}</span>
-          <span>Files and GitHub actions run locally in your browser</span>
+          {changedFiles.length > 0 ? (
+            <button
+              type="button"
+              className="hint-changes"
+              onClick={() => setMode('code')}
+              title="Open the workspace and review what changed"
+            >
+              <FileDiff size={11} />
+              {changedFiles.length} changed
+              <em className="added">+{changedLines.added}</em>
+              <em className="removed">−{changedLines.removed}</em>
+            </button>
+          ) : (
+            <span>Files and GitHub actions run locally in your browser</span>
+          )}
         </div>
       </div>
     </div>

@@ -28,6 +28,8 @@ interface PersistedState {
   sessions: Session[];
   activeSessionId: string;
   workspace: Record<string, string>;
+  /** Snapshot the workspace is compared against to show what changed. */
+  workspaceBaseline?: Record<string, string>;
   githubToken: string;
   theme: Theme;
   editorPath: string | null;
@@ -75,6 +77,7 @@ function loadState(): PersistedState {
     sessions: [createSession()],
     activeSessionId: '',
     workspace: SEED_WORKSPACE,
+    workspaceBaseline: SEED_WORKSPACE,
     githubToken: '',
     theme: 'dark',
     editorPath: 'README.md',
@@ -98,8 +101,16 @@ function loadState(): PersistedState {
       Array.isArray(parsed.sessions) && parsed.sessions.length > 0
         ? parsed.sessions
         : fallback.sessions;
+    const workspace =
+      parsed.workspace && typeof parsed.workspace === 'object'
+        ? parsed.workspace
+        : fallback.workspace;
     return {
       providers,
+      workspaceBaseline:
+        parsed.workspaceBaseline && typeof parsed.workspaceBaseline === 'object'
+          ? parsed.workspaceBaseline
+          : workspace,
       activeProviderId:
         parsed.activeProviderId && providers.some((p) => p.id === parsed.activeProviderId)
           ? parsed.activeProviderId
@@ -109,10 +120,7 @@ function loadState(): PersistedState {
         parsed.activeSessionId && sessions.some((s) => s.id === parsed.activeSessionId)
           ? parsed.activeSessionId
           : sessions[0].id,
-      workspace:
-        parsed.workspace && typeof parsed.workspace === 'object'
-          ? parsed.workspace
-          : fallback.workspace,
+      workspace,
       githubToken: typeof parsed.githubToken === 'string' ? parsed.githubToken : '',
       theme: parsed.theme === 'light' ? 'light' : 'dark',
       editorPath: typeof parsed.editorPath === 'string' ? parsed.editorPath : null,
@@ -161,6 +169,9 @@ export interface StoreValue {
   writeFile: (path: string, content: string) => void;
   deleteFile: (path: string) => void;
   replaceWorkspace: (files: Record<string, string>) => void;
+  /** Snapshot the workspace is compared against to show what changed. */
+  workspaceBaseline: Record<string, string>;
+  markWorkspaceSaved: () => void;
   editorPath: string | null;
   openFile: (path: string | null) => void;
 
@@ -214,6 +225,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [prefill, setPrefill] = useState<string | null>(null);
 
   const workspaceRef = useRef<Record<string, string>>(initial.workspace);
+  const [workspaceBaseline, setWorkspaceBaseline] = useState<Record<string, string>>(
+    initial.workspaceBaseline ?? initial.workspace,
+  );
   const [workspaceVersion, bumpWorkspace] = useReducer((value: number) => value + 1, 0);
 
   const activeSessionIdRef = useRef(activeSessionId);
@@ -320,7 +334,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const replaceWorkspace = useCallback((files: Record<string, string>) => {
     workspaceRef.current = { ...files };
+    // Importing a repository starts a new "nothing changed yet" point.
+    setWorkspaceBaseline({ ...files });
     bumpWorkspace();
+  }, []);
+
+  const markWorkspaceSaved = useCallback(() => {
+    setWorkspaceBaseline({ ...workspaceRef.current });
   }, []);
 
   const openFile = useCallback((path: string | null) => {
@@ -357,19 +377,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     window.location.reload();
   }, []);
 
+  const snapshotRef = useRef<PersistedState | null>(null);
+
   useEffect(() => {
+    snapshotRef.current = {
+      providers,
+      activeProviderId,
+      sessions,
+      activeSessionId,
+      workspace: workspaceRef.current,
+      workspaceBaseline,
+      githubToken,
+      theme,
+      editorPath,
+      contextDocuments,
+    };
+    const state = snapshotRef.current;
     const timer = window.setTimeout(() => {
-      const state: PersistedState = {
-        providers,
-        activeProviderId,
-        sessions,
-        activeSessionId,
-        workspace: workspaceRef.current,
-        githubToken,
-        theme,
-        editorPath,
-        contextDocuments,
-      };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch {
@@ -386,8 +410,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     theme,
     editorPath,
     contextDocuments,
+    workspaceBaseline,
     workspaceVersion,
   ]);
+
+  // A reload right after a change must not lose it: flush the pending write.
+  useEffect(() => {
+    const flush = () => {
+      if (!snapshotRef.current) return;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshotRef.current));
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
+    };
+  }, []);
 
   const value: StoreValue = {
     providers,
@@ -410,6 +453,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     writeFile,
     deleteFile,
     replaceWorkspace,
+    workspaceBaseline,
+    markWorkspaceSaved,
     editorPath,
     openFile,
     githubToken,

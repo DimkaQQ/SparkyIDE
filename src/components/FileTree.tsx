@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight, FileCode, FileImage, FileJson, FileText } from 'lucide-react';
 
+import type { ChangeStatus } from '../lib/diff';
+
 interface FileTreeProps {
   paths: string[];
   activePath: string | null;
   onSelect: (path: string) => void;
+  /** Files that differ from the saved snapshot, keyed by path. */
+  changeByPath?: Map<string, ChangeStatus>;
 }
 
 interface TreeNode {
@@ -55,7 +59,13 @@ function iconFor(name: string) {
   return <FileCode size={13} />;
 }
 
-export default function FileTree({ paths, activePath, onSelect }: FileTreeProps) {
+const CHANGE_LETTER: Record<ChangeStatus, string> = {
+  added: 'A',
+  modified: 'M',
+  deleted: 'D',
+};
+
+export default function FileTree({ paths, activePath, onSelect, changeByPath }: FileTreeProps) {
   const tree = useMemo(() => buildTree(paths), [paths]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -81,6 +91,11 @@ export default function FileTree({ paths, activePath, onSelect }: FileTreeProps)
         >
           <span className="tree-icon">{iconFor(node.name)}</span>
           <span className="tree-name">{node.name}</span>
+          {changeByPath?.has(node.path) && (
+            <span className={`tree-change ${changeByPath.get(node.path)}`}>
+              {CHANGE_LETTER[changeByPath.get(node.path) as ChangeStatus]}
+            </span>
+          )}
         </button>
       );
     }

@@ -2,11 +2,13 @@ import Editor from '@monaco-editor/react';
 import { FileCode2, MessageSquare, Sparkles, Trash2 } from 'lucide-react';
 import { useStore } from '../state';
 import { formatBytes, languageOfFile } from '../lib/markdown';
+import { countLineChanges } from '../lib/diff';
 
 export default function EditorPane() {
   const {
     editorPath,
     workspace,
+    workspaceBaseline,
     writeFile,
     deleteFile,
     openFile,
@@ -32,6 +34,10 @@ export default function EditorPane() {
   }
 
   const content = workspace[editorPath];
+  const baseline = workspaceBaseline[editorPath];
+  const isNew = baseline === undefined;
+  const isChanged = !isNew && baseline !== content;
+  const delta = isNew || isChanged ? countLineChanges(baseline ?? '', content) : null;
 
   return (
     <div className="editor-pane">
@@ -39,6 +45,16 @@ export default function EditorPane() {
         <FileCode2 size={14} />
         <span className="editor-path">{editorPath}</span>
         <span className="badge">{languageOfFile(editorPath)}</span>
+        {delta && (
+          <span
+            className={`badge change-badge ${isNew ? 'added' : 'modified'}`}
+            title={isNew ? 'Created since the last save' : 'Changed since the last save'}
+          >
+            {isNew ? 'new' : 'changed'}
+            {delta.added > 0 ? ` +${delta.added}` : ''}
+            {delta.removed > 0 ? ` −${delta.removed}` : ''}
+          </span>
+        )}
         <span className="editor-stat">
           {content.split('\n').length} lines · {formatBytes(new Blob([content]).size)}
         </span>

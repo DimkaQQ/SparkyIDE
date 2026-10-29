@@ -713,6 +713,11 @@ img {
   opacity: 0.9;
 }
 
+.tree-row .tree-name {
+  flex: 1;
+  min-width: 0;
+}
+
 .tree-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1405,6 +1410,134 @@ img {
   color: var(--accent);
 }
 
+/* Workspace change tracking */
+.tree-change {
+  flex: 0 0 auto;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--bg);
+}
+
+.tree-change.added,
+.change-badge.added {
+  background: var(--success);
+  color: #0d0d0f;
+}
+
+.tree-change.modified,
+.change-badge.modified {
+  background: var(--warning);
+  color: #0d0d0f;
+}
+
+.tree-change.deleted {
+  background: var(--error);
+  color: #0d0d0f;
+}
+
+.change-badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.changes-block {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.changes-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 4px;
+}
+
+.changes-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.changes-toggle:hover {
+  background: var(--surface-hover);
+}
+
+.changes-count {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.changes-stat {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.changes-stat.added {
+  color: var(--success);
+}
+
+.changes-stat.removed {
+  color: var(--error);
+}
+
+.changes-list {
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 0 6px 6px;
+}
+
+.changes-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.changes-row:hover {
+  background: var(--surface-hover);
+}
+
+.changes-row.deleted {
+  opacity: 0.65;
+}
+
+.changes-file {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 /* Older transcript pages. */
 .message-more {
   display: flex;
@@ -1669,9 +1802,42 @@ img {
   margin: 6px auto 0;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   font-size: 10.5px;
   color: var(--muted-2);
+}
+
+.hint-changes {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 10.5px;
+}
+
+.hint-changes:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.hint-changes em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.hint-changes em.added {
+  color: var(--success);
+}
+
+.hint-changes em.removed {
+  color: var(--error);
 }
 
 .composer-error {
