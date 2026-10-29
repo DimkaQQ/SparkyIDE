@@ -1365,6 +1365,88 @@ img {
   color: #fff;
 }
 
+/* PDF attachments in the composer and in the transcript. */
+.composer-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 2px 8px;
+}
+
+.composer-doc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 6px 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.composer-doc svg {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.composer-doc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+  font-weight: 550;
+}
+
+.composer-doc em {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.composer-doc button {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+
+.composer-doc button:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+.msg-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.msg-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 11px;
+  color: var(--text);
+}
+
+.msg-doc em {
+  font-style: normal;
+  color: var(--muted);
+}
+
 .send-btn {
   width: 30px;
   height: 30px;

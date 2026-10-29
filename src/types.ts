@@ -19,11 +19,21 @@ export interface ToolCall {
   arguments: string;
 }
 
+export interface DocumentAttachment {
+  name: string;
+  /** Page count reported by the PDF reader. */
+  pages: number;
+  /** Extracted text; empty when the PDF has no text layer (scanned). */
+  text: string;
+  bytes: number;
+}
+
 export interface UserMessage {
   id: string;
   role: 'user';
   content: string;
   images?: string[];
+  documents?: DocumentAttachment[];
   createdAt: number;
 }
 

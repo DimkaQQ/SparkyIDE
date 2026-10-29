@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ClipboardEvent } from 'react';
 import {
   ArrowUp,
   Bot,
+  FileText,
   ImagePlus,
   KeyRound,
   Square,
@@ -9,8 +11,9 @@ import {
   X,
 } from 'lucide-react';
 import { buildSystemPrompt, runAgent } from '../agent/runner';
+import { isImage, isPdf, readImage, readPdf } from '../lib/attachments';
 import { useStore, uid } from '../state';
-import type { ChatMessage, ToolMessage } from '../types';
+import type { ChatMessage, DocumentAttachment, ToolMessage } from '../types';
 import Markdown from './Markdown';
 import ModelPicker from './ModelPicker';
 import { ToolCard } from './ToolCard';
@@ -57,6 +60,8 @@ export default function ChatView() {
 
   const [input, setInput] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [documents, setDocuments] = useState<DocumentAttachment[]>([]);
+  const [attaching, setAttaching] = useState(false);
   const [busy, setBusy] = useState(false);
   const [composerError, setComposerError] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -107,18 +112,38 @@ export default function ChatView() {
       element.scrollHeight - element.scrollTop - element.clientHeight < 90;
   };
 
-  const attachImages = (files: FileList | null) => {
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) continue;
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setImages((previous) => [...previous, reader.result as string]);
+  const attachFiles = async (files: FileList | File[] | null) => {
+    const list = files ? Array.from(files) : [];
+    if (list.length === 0) return;
+    setComposerError('');
+    setAttaching(true);
+    try {
+      for (const file of list) {
+        if (isImage(file)) {
+          const dataUrl = await readImage(file);
+          setImages((previous) => [...previous, dataUrl]);
+        } else if (isPdf(file)) {
+          const document = await readPdf(file);
+          setDocuments((previous) => [...previous, document]);
         }
-      };
-      reader.readAsDataURL(file);
+      }
+    } catch (error) {
+      setComposerError(
+        error instanceof Error ? error.message : 'Could not read that attachment.',
+      );
+    } finally {
+      setAttaching(false);
     }
+  };
+
+  // Screenshots on the clipboard (Cmd/Ctrl+V) behave like attachments.
+  const pasteAttachments = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
+      isImage(file),
+    );
+    if (files.length === 0) return;
+    event.preventDefault();
+    void attachFiles(files);
   };
 
   const stop = () => {
@@ -127,8 +152,8 @@ export default function ChatView() {
 
   const send = async (override?: string) => {
     const text = (override ?? input).trim();
-    if (busy) return;
-    if (!text && images.length === 0) return;
+    if (busy || attaching) return;
+    if (!text && images.length === 0 && documents.length === 0) return;
 
     if (!activeProvider) {
       setSettingsOpen(true);
@@ -149,8 +174,13 @@ export default function ChatView() {
     const userMessage: ChatMessage = {
       id: uid('msg-'),
       role: 'user',
-      content: text || 'Describe the attached image.',
+      content:
+        text ||
+        (documents.length > 0
+          ? 'Read the attached document and summarise what matters.'
+          : 'Describe the attached image.'),
       images: images.length > 0 ? [...images] : undefined,
+      documents: documents.length > 0 ? [...documents] : undefined,
       createdAt: Date.now(),
     };
 
@@ -166,6 +196,7 @@ export default function ChatView() {
     appendMessage(sessionId, userMessage);
     setInput('');
     setImages([]);
+    setDocuments([]);
     setBusy(true);
     lastAssistantId.current = null;
     const controller = new AbortController();
@@ -313,6 +344,17 @@ export default function ChatView() {
                           ))}
                         </div>
                       )}
+                      {message.documents && message.documents.length > 0 && (
+                        <div className="msg-docs">
+                          {message.documents.map((document, index) => (
+                            <span key={index} className="msg-doc">
+                              <FileText size={11} />
+                              {document.name}
+                              <em>{document.pages} p</em>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <div className="user-text">{message.content}</div>
                     </div>
                   </div>
@@ -426,11 +468,38 @@ export default function ChatView() {
             </div>
           )}
 
+          {documents.length > 0 && (
+            <div className="composer-docs">
+              {documents.map((document, index) => (
+                <div key={index} className="composer-doc">
+                  <FileText size={12} />
+                  <span className="composer-doc-name">{document.name}</span>
+                  <em>
+                    {document.pages} p ·{' '}
+                    {document.text
+                      ? `${Math.max(1, Math.round(document.text.length / 1000))}k chars`
+                      : 'no text layer'}
+                  </em>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDocuments((previous) => previous.filter((_, i) => i !== index))
+                    }
+                    aria-label={`Remove ${document.name}`}
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             value={input}
             rows={1}
             onChange={(event) => setInput(event.target.value)}
+            onPaste={pasteAttachments}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -448,7 +517,8 @@ export default function ChatView() {
             <button
               type="button"
               className="icon-btn"
-              title="Attach images"
+              title="Attach images or PDFs (or paste a screenshot)"
+              disabled={attaching}
               onClick={() => fileInputRef.current?.click()}
             >
               <ImagePlus size={15} />
@@ -456,11 +526,11 @@ export default function ChatView() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf,.pdf"
               multiple
               hidden
               onChange={(event) => {
-                attachImages(event.target.files);
+                void attachFiles(event.target.files);
                 event.target.value = '';
               }}
             />
@@ -478,7 +548,11 @@ export default function ChatView() {
                 type="button"
                 className="send-btn"
                 onClick={() => void send()}
-                disabled={(!input.trim() && images.length === 0) || !hasKey}
+                disabled={
+                  (!input.trim() && images.length === 0 && documents.length === 0) ||
+                  !hasKey ||
+                  attaching
+                }
                 title="Send"
               >
                 <ArrowUp size={15} />
