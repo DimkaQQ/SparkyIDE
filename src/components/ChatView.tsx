@@ -3,6 +3,7 @@ import type { ClipboardEvent, DragEvent as ReactDragEvent } from 'react';
 import {
   ArrowUp,
   Bot,
+  Check,
   FileText,
   ImagePlus,
   KeyRound,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { buildSystemPrompt, runAgent } from '../agent/runner';
 import {
+  MAX_DOCUMENT_CHARS,
   isImage,
   isPdf,
   isTextFile,
@@ -25,6 +27,9 @@ import type { ChatMessage, DocumentAttachment, ToolMessage } from '../types';
 import Markdown from './Markdown';
 import ModelPicker from './ModelPicker';
 import { ToolCard } from './ToolCard';
+
+/** How many transcript messages render at once before older ones load on scroll. */
+const MESSAGE_PAGE = 30;
 
 const SUGGESTIONS = [
   {
@@ -74,6 +79,10 @@ export default function ChatView() {
   const [documents, setDocuments] = useState<DocumentAttachment[]>([]);
   const [attaching, setAttaching] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [contextQuery, setContextQuery] = useState('');
+  // Only the tail of a long transcript is rendered; the rest loads on demand.
+  const [visibleCount, setVisibleCount] = useState(MESSAGE_PAGE);
   const [busy, setBusy] = useState(false);
   const [composerError, setComposerError] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -85,6 +94,8 @@ export default function ChatView() {
   const streamedText = useRef<Map<string, string>>(new Map());
 
   const messages = activeSession?.messages ?? [];
+  const hiddenCount = Math.max(0, messages.length - visibleCount);
+  const renderedMessages = hiddenCount > 0 ? messages.slice(hiddenCount) : messages;
 
   const toolResults = useMemo(() => {
     const map = new Map<string, ToolMessage>();
@@ -117,11 +128,43 @@ export default function ChatView() {
     element.scrollTop = element.scrollHeight;
   }, [messages, busy]);
 
+  useEffect(() => {
+    setVisibleCount(MESSAGE_PAGE);
+    stickToBottom.current = true;
+  }, [activeSessionId]);
+
+  const pendingScrollRestore = useRef<number | null>(null);
+  const lastScrollTop = useRef(0);
+
+  const loadEarlier = () => {
+    const element = scrollRef.current;
+    if (!element) return;
+    pendingScrollRestore.current = element.scrollHeight - element.scrollTop;
+    setVisibleCount((count) => count + MESSAGE_PAGE);
+  };
+
+  // Prepending older messages must not jump the transcript under the cursor.
+  useEffect(() => {
+    const element = scrollRef.current;
+    const keep = pendingScrollRestore.current;
+    if (!element || keep === null) return;
+    pendingScrollRestore.current = null;
+    element.scrollTop = element.scrollHeight - keep;
+    lastScrollTop.current = element.scrollTop;
+  }, [visibleCount]);
+
   const onScroll = () => {
     const element = scrollRef.current;
     if (!element) return;
-    stickToBottom.current =
-      element.scrollHeight - element.scrollTop - element.clientHeight < 90;
+    const top = element.scrollTop;
+    stickToBottom.current = element.scrollHeight - top - element.clientHeight < 90;
+    // Auto-load only when the user scrolls up from further down: a short
+    // transcript otherwise keeps loading pages until everything is rendered.
+    const scrolledUp = lastScrollTop.current > top + 40;
+    if (top < 80 && scrolledUp && hiddenCount > 0 && pendingScrollRestore.current === null) {
+      loadEarlier();
+    }
+    lastScrollTop.current = top;
   };
 
   const attachFiles = async (files: FileList | File[] | null) => {
@@ -190,6 +233,53 @@ export default function ChatView() {
   };
 
   // Screenshots on the clipboard (Cmd/Ctrl+V) behave like attachments.
+  const workspaceFiles = useMemo(() => Object.keys(workspace).sort(), [workspace]);
+  const filteredWorkspaceFiles = useMemo(() => {
+    const needle = contextQuery.trim().toLowerCase();
+    if (!needle) return workspaceFiles;
+    return workspaceFiles.filter((path) => path.toLowerCase().includes(needle));
+  }, [workspaceFiles, contextQuery]);
+
+  const toggleWorkspacePin = (path: string) => {
+    if (contextDocuments.some((document) => document.name === path)) {
+      unpinDocument(path);
+      return;
+    }
+    const content = getWorkspace()[path];
+    if (typeof content !== 'string') {
+      setComposerError(`\`${path}\` is no longer in the workspace.`);
+      return;
+    }
+    pinDocument({
+      name: path,
+      kind: 'text',
+      text:
+        content.length > MAX_DOCUMENT_CHARS
+          ? `${content.slice(0, MAX_DOCUMENT_CHARS)}\n…truncated`
+          : content,
+      bytes: new Blob([content]).size,
+    });
+  };
+
+  // The picker closes on a click outside of it or on Escape.
+  useEffect(() => {
+    if (!contextOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.context-menu, .context-toggle')) return;
+      setContextOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setContextOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [contextOpen]);
+
   const pasteAttachments = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
       isImage(file),
@@ -347,7 +437,18 @@ export default function ChatView() {
 
   return (
     <div className="chat-view">
-      <div className="chat-scroll" ref={scrollRef} onScroll={onScroll}>
+      <div
+        className="chat-scroll"
+        ref={scrollRef}
+        onScroll={onScroll}
+        onWheel={(event) => {
+          // Already at the very top: a scroll event will not fire, so listen here.
+          const element = scrollRef.current;
+          if (event.deltaY < 0 && element && element.scrollTop <= 0 && hiddenCount > 0) {
+            loadEarlier();
+          }
+        }}
+      >
         {messages.length === 0 ? (
           <div className="chat-empty">
             <div className="empty-logo">S</div>
@@ -388,7 +489,15 @@ export default function ChatView() {
           </div>
         ) : (
           <div className="message-list">
-            {messages.map((message) => {
+            {hiddenCount > 0 && (
+              <div className="message-more">
+                <button type="button" onClick={loadEarlier}>
+                  Load {Math.min(MESSAGE_PAGE, hiddenCount)} earlier message
+                  {Math.min(MESSAGE_PAGE, hiddenCount) === 1 ? '' : 's'} ({hiddenCount} hidden)
+                </button>
+              </div>
+            )}
+            {renderedMessages.map((message) => {
               if (message.role === 'tool') return null;
 
               if (message.role === 'user') {
@@ -533,6 +642,46 @@ export default function ChatView() {
         )}
 
         <div className={dragging ? 'composer drop-active' : 'composer'} {...dragHandlers}>
+          {contextOpen && (
+            <div className="context-menu">
+              <div className="context-menu-head">
+                <Pin size={12} /> Project context
+              </div>
+              <input
+                className="input context-search"
+                placeholder="Filter workspace files…"
+                value={contextQuery}
+                onChange={(event) => setContextQuery(event.target.value)}
+                autoFocus
+              />
+              <div className="context-list">
+                {filteredWorkspaceFiles.length === 0 && (
+                  <div className="context-empty">
+                    {workspaceFiles.length === 0 ? 'The workspace is empty.' : 'No files match.'}
+                  </div>
+                )}
+                {filteredWorkspaceFiles.map((path) => {
+                  const pinned = contextDocuments.some((document) => document.name === path);
+                  return (
+                    <button
+                      key={path}
+                      type="button"
+                      className={`context-item ${pinned ? 'pinned' : ''}`}
+                      onClick={() => toggleWorkspacePin(path)}
+                    >
+                      <FileText size={11} />
+                      <span>{path}</span>
+                      {pinned ? <Check size={12} /> : <Pin size={11} />}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="context-menu-foot">
+                Pinned files are sent with every message in this chat.
+              </div>
+            </div>
+          )}
+
           {dragging && <div className="composer-drop-hint">Drop images, PDFs or text files</div>}
           {images.length > 0 && (
             <div className="composer-images">
@@ -629,6 +778,16 @@ export default function ChatView() {
                 event.target.value = '';
               }}
             />
+
+            <button
+              type="button"
+              className={`icon-btn context-toggle ${contextOpen ? 'active' : ''}`}
+              title="Pin a workspace file as context"
+              aria-label="Pin a workspace file as context"
+              onClick={() => setContextOpen((open) => !open)}
+            >
+              <Pin size={14} />
+            </button>
 
             <ModelPicker />
 
