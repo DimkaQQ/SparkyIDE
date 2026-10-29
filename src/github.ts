@@ -166,6 +166,45 @@ export async function listCommits(
   }));
 }
 
+export interface CreatedBranch {
+  branch: string;
+  sha: string;
+  base: string;
+  created: boolean;
+}
+
+/** Creates a branch from `from` (or the default branch) and reports its head. */
+export async function createBranch(
+  token: string,
+  repo: string,
+  branch: string,
+  from?: string,
+): Promise<CreatedBranch> {
+  const gh = client(token);
+  const { owner, name } = splitRepo(repo);
+  const clean = branch.replace(/^refs\/heads\//, '').trim();
+  if (!clean) throw new Error('Branch name is required.');
+
+  const { data: repoInfo } = await gh.repos.get({ owner, repo: name });
+  const base = from?.trim() || repoInfo.default_branch;
+
+  try {
+    const { data } = await gh.git.getRef({ owner, repo: name, ref: `heads/${clean}` });
+    return { branch: clean, sha: data.object.sha, base, created: false };
+  } catch (error) {
+    if ((error as { status?: number }).status !== 404) throw error;
+  }
+
+  const { data: baseRef } = await gh.git.getRef({ owner, repo: name, ref: `heads/${base}` });
+  const { data: created } = await gh.git.createRef({
+    owner,
+    repo: name,
+    ref: `refs/heads/${clean}`,
+    sha: baseRef.object.sha,
+  });
+  return { branch: clean, sha: created.object.sha, base, created: true };
+}
+
 export interface CommitFilesOptions {
   repo: string;
   branch: string;

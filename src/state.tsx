@@ -9,7 +9,13 @@ import React, {
   useState,
 } from 'react';
 import { DEFAULT_PROVIDERS } from './providers';
-import type { ChatMessage, GitHubUser, ProviderConfig, Session } from './types';
+import type {
+  ChatMessage,
+  DocumentAttachment,
+  GitHubUser,
+  ProviderConfig,
+  Session,
+} from './types';
 
 export type Theme = 'dark' | 'light';
 export type Mode = 'chat' | 'code' | 'github';
@@ -25,6 +31,8 @@ interface PersistedState {
   githubToken: string;
   theme: Theme;
   editorPath: string | null;
+  /** Documents the user pinned as background for every chat message. */
+  contextDocuments?: DocumentAttachment[];
 }
 
 export function uid(prefix = ''): string {
@@ -70,6 +78,7 @@ function loadState(): PersistedState {
     githubToken: '',
     theme: 'dark',
     editorPath: 'README.md',
+    contextDocuments: [],
   };
   fallback.activeSessionId = fallback.sessions[0].id;
 
@@ -107,6 +116,12 @@ function loadState(): PersistedState {
       githubToken: typeof parsed.githubToken === 'string' ? parsed.githubToken : '',
       theme: parsed.theme === 'light' ? 'light' : 'dark',
       editorPath: typeof parsed.editorPath === 'string' ? parsed.editorPath : null,
+      contextDocuments: Array.isArray(parsed.contextDocuments)
+        ? parsed.contextDocuments.filter(
+            (document): document is DocumentAttachment =>
+              Boolean(document) && typeof document.name === 'string' && typeof document.text === 'string',
+          )
+        : [],
     };
   } catch {
     return fallback;
@@ -154,6 +169,10 @@ export interface StoreValue {
   githubUser: GitHubUser | null;
   setGithubUser: (user: GitHubUser | null) => void;
 
+  contextDocuments: DocumentAttachment[];
+  pinDocument: (document: DocumentAttachment) => void;
+  unpinDocument: (name: string) => void;
+
   theme: Theme;
   toggleTheme: () => void;
 
@@ -184,6 +203,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState(initial.activeSessionId);
   const [githubToken, setGithubTokenState] = useState(initial.githubToken);
   const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
+  const [contextDocuments, setContextDocuments] = useState<DocumentAttachment[]>(
+    initial.contextDocuments ?? [],
+  );
   const [theme, setTheme] = useState<Theme>(initial.theme);
   const [editorPath, setEditorPath] = useState<string | null>(initial.editorPath);
   const [mode, setMode] = useState<Mode>('chat');
@@ -311,6 +333,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setGithubUser(null);
   }, []);
 
+  const pinDocument = useCallback((document: DocumentAttachment) => {
+    setContextDocuments((prev) => {
+      const without = prev.filter((item) => item.name !== document.name);
+      return [...without, document];
+    });
+  }, []);
+
+  const unpinDocument = useCallback((name: string) => {
+    setContextDocuments((prev) => prev.filter((item) => item.name !== name));
+  }, []);
+
   const toggleTheme = useCallback(() => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
@@ -335,6 +368,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         githubToken,
         theme,
         editorPath,
+        contextDocuments,
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -351,6 +385,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     githubToken,
     theme,
     editorPath,
+    contextDocuments,
     workspaceVersion,
   ]);
 
@@ -381,6 +416,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setGithubToken,
     githubUser,
     setGithubUser,
+    contextDocuments,
+    pinDocument,
+    unpinDocument,
     theme,
     toggleTheme,
     mode,

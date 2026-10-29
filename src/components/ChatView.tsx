@@ -6,6 +6,7 @@ import {
   FileText,
   ImagePlus,
   KeyRound,
+  Pin,
   Square,
   AlertTriangle,
   X,
@@ -63,6 +64,9 @@ export default function ChatView() {
     setSettingsOpen,
     prefill,
     setPrefill,
+    contextDocuments,
+    pinDocument,
+    unpinDocument,
   } = useStore();
 
   const [input, setInput] = useState('');
@@ -220,16 +224,20 @@ export default function ChatView() {
     setComposerError('');
     const sessionId = activeSessionId;
     const provider = activeProvider;
+    // Pinned documents already travel in the system prompt, so skip duplicates.
+    const pendingDocuments = documents.filter(
+      (document) => !contextDocuments.some((pinned) => pinned.name === document.name),
+    );
     const userMessage: ChatMessage = {
       id: uid('msg-'),
       role: 'user',
       content:
         text ||
-        (documents.length > 0
+        (pendingDocuments.length > 0
           ? 'Read the attached document and summarise what matters.'
           : 'Describe the attached image.'),
       images: images.length > 0 ? [...images] : undefined,
-      documents: documents.length > 0 ? [...documents] : undefined,
+      documents: pendingDocuments.length > 0 ? [...pendingDocuments] : undefined,
       createdAt: Date.now(),
     };
 
@@ -259,6 +267,7 @@ export default function ChatView() {
           workspacePaths: Object.keys(getWorkspace()).sort(),
           githubLogin: githubUser?.login ?? null,
           activeFile: editorPath,
+          contextDocuments,
         }),
         history: usableHistory,
         signal: controller.signal,
@@ -481,6 +490,28 @@ export default function ChatView() {
       </div>
 
       <div className="composer-wrap">
+        {contextDocuments.length > 0 && (
+          <div className="pinned-context">
+            <span className="pinned-context-label">
+              <Pin size={11} /> Pinned context
+            </span>
+            {contextDocuments.map((document) => (
+              <span key={document.name} className="pinned-doc">
+                <FileText size={10} />
+                {document.name}
+                <em>{document.pages ? `${document.pages} p` : 'text'}</em>
+                <button
+                  type="button"
+                  onClick={() => unpinDocument(document.name)}
+                  aria-label={`Unpin ${document.name}`}
+                >
+                  <X size={9} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         {composerError && (
           <div className="composer-error">
             <AlertTriangle size={13} />
@@ -532,6 +563,18 @@ export default function ChatView() {
                       ? `${Math.max(1, Math.round(document.text.length / 1000))}k chars`
                       : 'no text layer'}
                   </em>
+                  <button
+                    type="button"
+                    className="composer-doc-pin"
+                    title="Keep in every message"
+                    aria-label={`Keep ${document.name} in every message`}
+                    onClick={() => {
+                      pinDocument(document);
+                      setDocuments((previous) => previous.filter((_, i) => i !== index));
+                    }}
+                  >
+                    <Pin size={11} />
+                  </button>
                   <button
                     type="button"
                     onClick={() =>

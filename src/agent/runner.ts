@@ -1,5 +1,6 @@
 import type {
   ChatMessage,
+  DocumentAttachment,
   ProviderConfig,
   ToolCall,
   ToolRunResult,
@@ -136,12 +137,33 @@ export function buildSystemPrompt(input: {
   workspacePaths: string[];
   githubLogin?: string | null;
   activeFile?: string | null;
+  contextDocuments?: DocumentAttachment[];
 }): string {
   const paths = input.workspacePaths.slice(0, 240);
   const tree = paths.length > 0 ? paths.join('\n') : '(empty workspace)';
   const github = input.githubLogin
-    ? `GitHub is connected as @${input.githubLogin}. You can read repositories, commit files and open pull requests with the github_* tools.`
+    ? [
+        `GitHub is connected as @${input.githubLogin}. You can read repositories, create branches, commit, and open pull requests with the github_* tools.`,
+        'Shipping flow: github_create_branch when you need a fresh branch → edit the workspace files → github_push_workspace to commit the whole workspace onto that branch → github_create_pr.',
+        'Push to a dedicated branch instead of the default branch unless the user explicitly asks for the default branch.',
+        'Never claim a push or commit happened without a github_ tool result that says it did.',
+      ].join('\n')
     : 'GitHub is not connected. If the user asks for GitHub work, tell them to add a token in Settings → GitHub.';
+
+  const pinned = (input.contextDocuments ?? []).filter(
+    (document) => document.text.trim() !== '',
+  );
+  const contextBlock =
+    pinned.length === 0
+      ? ''
+      : [
+          '## Pinned context',
+          'The user pinned these documents. Treat them as background for every answer in this chat and prefer them over guessing.',
+          ...pinned.map((document) => {
+            const pages = document.pages ? ` pages="${document.pages}"` : '';
+            return `<document name="${document.name}"${pages}>\n${document.text.trim()}\n</document>`;
+          }),
+        ].join('\n');
 
   return [
     'You are Sparky, an autonomous AI coding agent inside Sparky IDE — a desktop-style development environment in the browser.',
@@ -166,6 +188,8 @@ export function buildSystemPrompt(input: {
     '',
     '## Integrations',
     github,
+    '',
+    contextBlock,
   ]
     .filter((line) => line !== '')
     .join('\n');
