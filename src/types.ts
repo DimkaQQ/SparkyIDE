@@ -21,8 +21,10 @@ export interface ToolCall {
 
 export interface DocumentAttachment {
   name: string;
-  /** Page count reported by the PDF reader. */
-  pages: number;
+  /** 'pdf' keeps per-page markers, 'text' is a plain text file. */
+  kind: 'pdf' | 'text';
+  /** Page count reported by the PDF reader; undefined for text files. */
+  pages?: number;
   /** Extracted text; empty when the PDF has no text layer (scanned). */
   text: string;
   bytes: number;

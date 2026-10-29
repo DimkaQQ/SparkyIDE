@@ -313,8 +313,9 @@ function withDocuments(message: UserMessage): string {
   if (documents.length === 0) return body;
   const blocks = documents.map((document) => {
     const text = document.text.trim();
+    const pages = document.pages ? ` pages="${document.pages}"` : '';
     return [
-      `<document name="${document.name}" pages="${document.pages}">`,
+      `<document name="${document.name}"${pages}>`,
       text || '(no extractable text — this PDF is probably a scan of paper, ask the user for text or a screenshot)',
       '</document>',
     ].join('\n');

@@ -10,7 +10,7 @@ async function loadPdfjs() {
   return pdfjs;
 }
 
-/** Text budget for one PDF; longer documents are truncated with a marker. */
+/** Text budget for one attachment; longer files are truncated with a marker. */
 export const MAX_DOCUMENT_CHARS = 60_000;
 
 export function readImage(file: File): Promise<string> {
@@ -63,6 +63,7 @@ export async function readPdf(file: File): Promise<DocumentAttachment> {
 
     return {
       name: file.name,
+      kind: 'pdf',
       pages: doc.numPages,
       text: pages.join('\n\n'),
       bytes: file.size,
@@ -78,4 +79,21 @@ export function isPdf(file: File): boolean {
 
 export function isImage(file: File): boolean {
   return file.type.startsWith('image/');
+}
+
+const TEXT_EXTENSIONS =
+  /\.(txt|md|markdown|mdx|csv|tsv|json|jsonc|ya?ml|toml|ini|cfg|conf|log|html?|css|scss|less|jsx?|tsx?|py|rb|go|rs|java|kt|c|h|cpp|cs|php|sh|bash|zsh|sql|env|gitignore)$/i;
+
+export function isTextFile(file: File): boolean {
+  if (isPdf(file) || isImage(file)) return false;
+  if (TEXT_EXTENSIONS.test(file.name)) return true;
+  return /^text\//.test(file.type) || file.type === 'application/json';
+}
+
+/** Reads a plain text attachment, such as a README, CSV dump or source file. */
+export async function readTextFile(file: File): Promise<DocumentAttachment> {
+  const raw = await file.text();
+  const text =
+    raw.length > MAX_DOCUMENT_CHARS ? `${raw.slice(0, MAX_DOCUMENT_CHARS)}\n…truncated` : raw;
+  return { name: file.name, kind: 'text', text, bytes: file.size };
 }

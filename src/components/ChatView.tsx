@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ClipboardEvent } from 'react';
+import type { ClipboardEvent, DragEvent as ReactDragEvent } from 'react';
 import {
   ArrowUp,
   Bot,
@@ -11,7 +11,14 @@ import {
   X,
 } from 'lucide-react';
 import { buildSystemPrompt, runAgent } from '../agent/runner';
-import { isImage, isPdf, readImage, readPdf } from '../lib/attachments';
+import {
+  isImage,
+  isPdf,
+  isTextFile,
+  readImage,
+  readPdf,
+  readTextFile,
+} from '../lib/attachments';
 import { useStore, uid } from '../state';
 import type { ChatMessage, DocumentAttachment, ToolMessage } from '../types';
 import Markdown from './Markdown';
@@ -62,6 +69,7 @@ export default function ChatView() {
   const [images, setImages] = useState<string[]>([]);
   const [documents, setDocuments] = useState<DocumentAttachment[]>([]);
   const [attaching, setAttaching] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [composerError, setComposerError] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -117,6 +125,7 @@ export default function ChatView() {
     if (list.length === 0) return;
     setComposerError('');
     setAttaching(true);
+    const rejected: string[] = [];
     try {
       for (const file of list) {
         if (isImage(file)) {
@@ -125,6 +134,11 @@ export default function ChatView() {
         } else if (isPdf(file)) {
           const document = await readPdf(file);
           setDocuments((previous) => [...previous, document]);
+        } else if (isTextFile(file)) {
+          const document = await readTextFile(file);
+          setDocuments((previous) => [...previous, document]);
+        } else {
+          rejected.push(file.name);
         }
       }
     } catch (error) {
@@ -134,6 +148,41 @@ export default function ChatView() {
     } finally {
       setAttaching(false);
     }
+    if (rejected.length > 0) {
+      setComposerError(
+        `Unsupported file${rejected.length === 1 ? '' : 's'}: ${rejected.join(', ')}. Attach images, PDFs or text files.`,
+      );
+    }
+  };
+
+  // Dropping a file outside the composer must not navigate away from the app.
+  useEffect(() => {
+    const block = (event: DragEvent) => {
+      if (event.dataTransfer?.types?.includes('Files')) event.preventDefault();
+    };
+    window.addEventListener('dragover', block);
+    window.addEventListener('drop', block);
+    return () => {
+      window.removeEventListener('dragover', block);
+      window.removeEventListener('drop', block);
+    };
+  }, []);
+
+  const dragHandlers = {
+    onDragOver: (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!event.dataTransfer.types.includes('Files')) return;
+      event.preventDefault();
+      setDragging(true);
+    },
+    onDragLeave: (event: ReactDragEvent<HTMLDivElement>) => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+      setDragging(false);
+    },
+    onDrop: (event: ReactDragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setDragging(false);
+      if (event.dataTransfer.files.length > 0) void attachFiles(event.dataTransfer.files);
+    },
   };
 
   // Screenshots on the clipboard (Cmd/Ctrl+V) behave like attachments.
@@ -350,7 +399,7 @@ export default function ChatView() {
                             <span key={index} className="msg-doc">
                               <FileText size={11} />
                               {document.name}
-                              <em>{document.pages} p</em>
+                              <em>{document.pages ? `${document.pages} p` : 'text'}</em>
                             </span>
                           ))}
                         </div>
@@ -436,9 +485,11 @@ export default function ChatView() {
           <div className="composer-error">
             <AlertTriangle size={13} />
             <span>{composerError}</span>
-            <button type="button" onClick={() => setSettingsOpen(true)}>
-              Open settings
-            </button>
+            {/api key|model/i.test(composerError) && (
+              <button type="button" onClick={() => setSettingsOpen(true)}>
+                Open settings
+              </button>
+            )}
             <button
               type="button"
               className="composer-error-close"
@@ -450,7 +501,8 @@ export default function ChatView() {
           </div>
         )}
 
-        <div className="composer">
+        <div className={dragging ? 'composer drop-active' : 'composer'} {...dragHandlers}>
+          {dragging && <div className="composer-drop-hint">Drop images, PDFs or text files</div>}
           {images.length > 0 && (
             <div className="composer-images">
               {images.map((source, index) => (
@@ -475,7 +527,7 @@ export default function ChatView() {
                   <FileText size={12} />
                   <span className="composer-doc-name">{document.name}</span>
                   <em>
-                    {document.pages} p ·{' '}
+                    {document.pages ? `${document.pages} p · ` : ''}
                     {document.text
                       ? `${Math.max(1, Math.round(document.text.length / 1000))}k chars`
                       : 'no text layer'}
@@ -517,7 +569,7 @@ export default function ChatView() {
             <button
               type="button"
               className="icon-btn"
-              title="Attach images or PDFs (or paste a screenshot)"
+              title="Attach images, PDFs or text files (or paste a screenshot)"
               disabled={attaching}
               onClick={() => fileInputRef.current?.click()}
             >
@@ -526,7 +578,7 @@ export default function ChatView() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,application/pdf,.pdf"
+              accept="image/*,application/pdf,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.yml,.yaml,.toml,.log,.ts,.tsx,.js,.jsx,.py,.css,.html,.sh,.sql"
               multiple
               hidden
               onChange={(event) => {
