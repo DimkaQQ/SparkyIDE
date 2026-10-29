@@ -108,6 +108,8 @@ export interface GitHubRepoSummary {
   stars: number;
   updatedAt: string;
   htmlUrl: string;
+  /** False when the token can read but not write to the repository. */
+  canPush?: boolean;
 }
 
 export interface GitHubTreeEntry {

@@ -2022,6 +2022,18 @@ img {
   flex: 0 0 auto;
 }
 
+/* Repositories the connected token can only read. */
+.gh-repo-ro {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--warning);
+  border-radius: 999px;
+  color: var(--warning);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .gh-main {
   flex: 1;
   display: flex;

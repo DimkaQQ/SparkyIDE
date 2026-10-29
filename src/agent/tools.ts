@@ -2,7 +2,10 @@ import {
   commitFiles,
   createBranch,
   createPullRequest,
+  describeGitHubError,
+  describeTokenAccess,
   getDefaultBranch,
+  getTokenAccess,
   getTree,
   listBranches,
   listCommits,
@@ -138,6 +141,14 @@ export const TOOLS: ToolSchema[] = [
       },
       ['repo', 'message', 'files'],
     ),
+  },
+  {
+    name: 'github_check_access',
+    description:
+      'Check what the connected GitHub token is allowed to do. Pass a repo to learn whether commits and PRs are possible there. Use it when a GitHub action failed with a permission error.',
+    parameters: schema({
+      repo: str('Repository in "owner/name" form (optional)'),
+    }),
   },
   {
     name: 'github_create_branch',
@@ -478,6 +489,23 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         };
       }
 
+      case 'github_check_access': {
+        const token = requireGitHub(ctx);
+        const repo = typeof args.repo === 'string' && args.repo ? args.repo : undefined;
+        const access = await getTokenAccess(token, repo);
+        const { summary, warning } = describeTokenAccess(access);
+        return {
+          ok: true,
+          content: [summary, warning].filter((line) => line !== '').join('\n\n'),
+          title: warning ? 'Limited access' : 'Write access ok',
+          meta: {
+            login: access.login,
+            classic: access.classic,
+            canPush: access.canPush === undefined ? 'unknown' : access.canPush,
+          },
+        };
+      }
+
       case 'github_create_branch': {
         const token = requireGitHub(ctx);
         const repo = argString(args, 'repo');
@@ -559,7 +587,10 @@ export async function executeTool(call: ToolCall, ctx: ToolContext): Promise<Too
         return errorResult(new Error(`Unknown tool "${call.name}".`));
     }
   } catch (error) {
-    return errorResult(error);
+    // GitHub API errors need permission guidance, not a raw API message.
+    return errorResult(
+      call.name.startsWith('github_') ? new Error(describeGitHubError(error)) : error,
+    );
   }
 }
 
@@ -578,6 +609,7 @@ export function toolLabel(name: string): string {
     github_list_commits: 'List commits',
     github_list_branches: 'List branches',
     github_commit_files: 'Commit to GitHub',
+    github_check_access: 'Check GitHub access',
     github_create_branch: 'Create branch',
     github_push_workspace: 'Push workspace',
     github_create_pr: 'Open pull request',

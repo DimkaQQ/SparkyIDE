@@ -147,6 +147,7 @@ export function buildSystemPrompt(input: {
         'Shipping flow: github_create_branch when you need a fresh branch → edit the workspace files → github_push_workspace to commit the whole workspace onto that branch → github_create_pr.',
         'Push to a dedicated branch instead of the default branch unless the user explicitly asks for the default branch.',
         'Never claim a push or commit happened without a github_ tool result that says it did.',
+        'If a GitHub tool fails with a permission error, call github_check_access and tell the user exactly which token permission to enable.',
       ].join('\n')
     : 'GitHub is not connected. If the user asks for GitHub work, tell them to add a token in Settings → GitHub.';
 
